@@ -1,16 +1,15 @@
 import 'dart:developer';
 
-import 'package:assignment_travaly/core/shared_preferences/shared_preferences_keys.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// ==================== DIO CLIENT SETUP ====================
+import '../../shared_preferences/shared_preferences_keys.dart';
 
 class DioClient {
   static final DioClient _instance = DioClient._internal();
   late Dio _dio;
 
-  // Singleton pattern - always returns the same instance
+  // Singleton
   factory DioClient() {
     return _instance;
   }
@@ -21,23 +20,16 @@ class DioClient {
         baseUrl: 'https://api.mytravaly.com/public/v1/',
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
       ),
     );
 
-    // Add interceptors
+    // Adding interceptors
     _dio.interceptors.add(AuthInterceptor());
     _dio.interceptors.add(LoggingInterceptor());
   }
 
-  // Direct access to Dio instance
   Dio get dio => _dio;
 }
-
-// ==================== AUTH INTERCEPTOR ====================
 
 class AuthInterceptor extends Interceptor {
   @override
@@ -50,11 +42,24 @@ class AuthInterceptor extends Interceptor {
       final prefs = await SharedPreferences.getInstance();
 
       // Check if visitor token exists
-      final String? visitorToken = prefs.getString('visitorToken');
+      final String? visitorToken = prefs.getString(
+        SharedPreferencesKeys.visitorTokenKey,
+      );
+      final String? authToken = prefs.getString(
+        SharedPreferencesKeys.authTokenKey,
+      );
+
+      if (authToken != null && authToken.isNotEmpty) {
+        // Add auth token to headers
+        options.headers['authtoken'] = authToken;
+        log('✅ Auth token added to request headers');
+      } else {
+        log('⚠️ No auth token found in SharedPreferences');
+      }
 
       if (visitorToken != null && visitorToken.isNotEmpty) {
         // Add visitor token to headers
-        options.headers['visitorToken'] = visitorToken;
+        options.headers['visitortoken'] = visitorToken;
         log('✅ Visitor token added to request headers');
       } else {
         log('⚠️ No visitor token found in SharedPreferences');
@@ -133,46 +138,6 @@ class LoggingInterceptor extends Interceptor {
     log('└─────────────────────────────────────────────────');
 
     handler.next(err);
-  }
-}
-
-// ==================== SHARED PREFERENCES HELPER ====================
-
-class AuthStorage {
-  // Save visitor token
-  static Future<bool> saveVisitorToken(String token) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return await prefs.setString(
-        SharedPreferencesKeys.visitorTokenKey,
-        token,
-      );
-    } catch (e) {
-      log('Error saving visitor token: $e');
-      return false;
-    }
-  }
-
-  // Get visitor token
-  static Future<String?> getVisitorToken() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(SharedPreferencesKeys.visitorTokenKey);
-    } catch (e) {
-      log('Error getting visitor token: $e');
-      return null;
-    }
-  }
-
-  // Check if visitor token exists
-  static Future<bool> hasVisitorToken() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.containsKey(SharedPreferencesKeys.visitorTokenKey);
-    } catch (e) {
-      log('Error checking visitor token: $e');
-      return false;
-    }
   }
 }
 
