@@ -17,7 +17,7 @@ class DioClient {
   DioClient._internal() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: 'https://api.mytravaly.com/public/v1/',
+        baseUrl: 'https://api.mytravaly.com/public/v1',
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
       ),

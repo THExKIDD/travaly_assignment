@@ -1,3 +1,4 @@
+import 'package:assignment_travaly/core/shared_preferences/auth_storage.dart';
 import 'package:assignment_travaly/presentation/home/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +13,15 @@ class GoogleSignInPage extends StatelessWidget {
     final bool isFirstLaunch =
         prefs.getBool(SharedPreferencesKeys.isFirstLaunch) ?? true;
 
-    if (isFirstLaunch) {}
+    if (isFirstLaunch) {
+      ///register device
+
+      final tkn = 'token';
+
+      await prefs.setBool(SharedPreferencesKeys.isFirstLaunch, false);
+
+      await AuthStorage.saveVisitorToken(tkn);
+    }
 
     // Frontend only - navigate to home page
     await Navigator.pushReplacement(

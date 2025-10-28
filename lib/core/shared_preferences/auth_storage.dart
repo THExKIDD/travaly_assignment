@@ -2,7 +2,7 @@ import 'dart:developer';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../shared_preferences/shared_preferences_keys.dart';
+import 'shared_preferences_keys.dart';
 
 class AuthStorage {
   // Save visitor token
