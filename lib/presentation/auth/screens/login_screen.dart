@@ -1,5 +1,10 @@
+import 'dart:developer';
+
+import 'package:assignment_travaly/core/services/dio/dio_client.dart';
 import 'package:assignment_travaly/core/shared_preferences/auth_storage.dart';
+import 'package:assignment_travaly/presentation/auth/data/models/device_info_model.dart';
 import 'package:assignment_travaly/presentation/home/screens/home_screen.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,14 +18,42 @@ class GoogleSignInPage extends StatelessWidget {
     final bool isFirstLaunch =
         prefs.getBool(SharedPreferencesKeys.isFirstLaunch) ?? true;
 
+    ///register device
     if (isFirstLaunch) {
-      ///register device
+      final deviceInfoPlugin = DeviceInfoPlugin();
+      final deviceInfo = await deviceInfoPlugin.androidInfo;
+      final deviceInfoModel = DeviceInfoModel(
+        deviceModel: deviceInfo.model,
+        deviceFingerprint: deviceInfo.fingerprint,
+        deviceBrand: deviceInfo.brand,
+        deviceId: deviceInfo.id,
+        deviceName: deviceInfo.name,
+        deviceManufacturer: deviceInfo.manufacturer,
+        deviceProduct: deviceInfo.product,
+        deviceSerialNumber: "unknown",
+      );
+      log(deviceInfoModel.toString());
 
-      final tkn = 'token';
+      final dio = DioClient();
 
+      final response = await dio.post(
+        'deviceRegister',
+        data: {'deviceRegister': deviceInfoModel.toJson()},
+      );
+
+      if (response.statusCode == 201) {
+        log("device registered successfully");
+        log(response.data.toString());
+        final tkn = response.data['data']['visitorToken'];
+        log(tkn);
+        await AuthStorage.saveVisitorToken(tkn);
+      } else {
+        log(
+          "device registration failed with status code ${response.statusCode} and message ${response.statusMessage}",
+        );
+      }
       await prefs.setBool(SharedPreferencesKeys.isFirstLaunch, false);
-
-      await AuthStorage.saveVisitorToken(tkn);
+      log("first launch set false");
     }
 
     // Frontend only - navigate to home page

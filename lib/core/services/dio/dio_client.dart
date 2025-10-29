@@ -8,11 +8,19 @@ import '../../shared_preferences/shared_preferences_keys.dart';
 class DioClient {
   static final DioClient _instance = DioClient._internal();
   late Dio _dio;
-  static const String baseUrl = 'https://api.mytravaly.com/public/v1';
+  static const String baseUrl = 'https://api.mytravaly.com/public/v1/';
 
   // Singleton
   factory DioClient() {
     return _instance;
+  }
+
+  Future<void> initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      SharedPreferencesKeys.authTokenKey,
+      '71523fdd8d26f585315b4233e39d9263',
+    );
   }
 
   Dio get dio => _dio;
@@ -28,65 +36,65 @@ class DioClient {
     // Adding interceptors
     _dio.interceptors.add(AuthInterceptor());
     _dio.interceptors.add(LoggingInterceptor());
+  }
 
-    Future<Response> get(
-      String action, {
-      Map<String, dynamic>? data,
-      Map<String, dynamic>? queryParameters,
-      Options? options,
-    }) async {
-      data?.addAll({'action': action});
-      return await _dio.get(
-        baseUrl,
-        queryParameters: queryParameters,
-        options: options,
-      );
-    }
+  Future<Response> get(
+    String action, {
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    data?.addAll({'action': action});
+    return await _dio.get(
+      baseUrl,
+      queryParameters: queryParameters,
+      options: options,
+    );
+  }
 
-    Future<Response> post(
-      String action, {
-      Map<String, dynamic>? data,
-      Map<String, dynamic>? queryParameters,
-      Options? options,
-    }) async {
-      data?.addAll({'action': action});
-      return await _dio.post(
-        baseUrl,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      );
-    }
+  Future<Response> post(
+    String action, {
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    data?.addAll({'action': action});
+    return await _dio.post(
+      baseUrl,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+    );
+  }
 
-    Future<Response> put(
-      String action, {
-      Map<String, dynamic>? data,
-      Map<String, dynamic>? queryParameters,
-      Options? options,
-    }) async {
-      data?.addAll({'action': action});
-      return await _dio.put(
-        baseUrl,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      );
-    }
+  Future<Response> put(
+    String action, {
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    data?.addAll({'action': action});
+    return await _dio.put(
+      baseUrl,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+    );
+  }
 
-    Future<Response> delete(
-      String action, {
-      Map<String, dynamic>? data,
-      Map<String, dynamic>? queryParameters,
-      Options? options,
-    }) async {
-      data?.addAll({'action': action});
-      return await _dio.delete(
-        baseUrl,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      );
-    }
+  Future<Response> delete(
+    String action, {
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    data?.addAll({'action': action});
+    return await _dio.delete(
+      baseUrl,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+    );
   }
 }
 
@@ -119,7 +127,7 @@ class AuthInterceptor extends Interceptor {
       if (visitorToken != null && visitorToken.isNotEmpty) {
         // Add visitor token to headers
         options.headers['visitortoken'] = visitorToken;
-        log('✅ Visitor token added to request headers');
+        log('✅ Visitor token added to request headers $visitorToken');
       } else {
         log('⚠️ No visitor token found in SharedPreferences');
       }
