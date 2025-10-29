@@ -8,16 +8,18 @@ import '../../shared_preferences/shared_preferences_keys.dart';
 class DioClient {
   static final DioClient _instance = DioClient._internal();
   late Dio _dio;
+  static const String baseUrl = 'https://api.mytravaly.com/public/v1';
 
   // Singleton
   factory DioClient() {
     return _instance;
   }
 
+  Dio get dio => _dio;
+
   DioClient._internal() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: 'https://api.mytravaly.com/public/v1',
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
       ),
@@ -26,9 +28,66 @@ class DioClient {
     // Adding interceptors
     _dio.interceptors.add(AuthInterceptor());
     _dio.interceptors.add(LoggingInterceptor());
-  }
 
-  Dio get dio => _dio;
+    Future<Response> get(
+      String action, {
+      Map<String, dynamic>? data,
+      Map<String, dynamic>? queryParameters,
+      Options? options,
+    }) async {
+      data?.addAll({'action': action});
+      return await _dio.get(
+        baseUrl,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    }
+
+    Future<Response> post(
+      String action, {
+      Map<String, dynamic>? data,
+      Map<String, dynamic>? queryParameters,
+      Options? options,
+    }) async {
+      data?.addAll({'action': action});
+      return await _dio.post(
+        baseUrl,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    }
+
+    Future<Response> put(
+      String action, {
+      Map<String, dynamic>? data,
+      Map<String, dynamic>? queryParameters,
+      Options? options,
+    }) async {
+      data?.addAll({'action': action});
+      return await _dio.put(
+        baseUrl,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    }
+
+    Future<Response> delete(
+      String action, {
+      Map<String, dynamic>? data,
+      Map<String, dynamic>? queryParameters,
+      Options? options,
+    }) async {
+      data?.addAll({'action': action});
+      return await _dio.delete(
+        baseUrl,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    }
+  }
 }
 
 class AuthInterceptor extends Interceptor {
@@ -91,8 +150,6 @@ class AuthInterceptor extends Interceptor {
     handler.next(err);
   }
 }
-
-// ==================== LOGGING INTERCEPTOR ====================
 
 class LoggingInterceptor extends Interceptor {
   @override
