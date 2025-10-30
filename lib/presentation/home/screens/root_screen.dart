@@ -25,11 +25,11 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
   bool _isLoading = false;
   bool _hasMoreData = true;
 
-  // API Search Parameters
-  DateTime _checkInDate = DateTime.now().add(const Duration(days: 7));
-  DateTime _checkOutDate = DateTime.now().add(const Duration(days: 8));
+  // API Search Parameters - NULLABLE DATES
+  DateTime? _checkInDate;
+  DateTime? _checkOutDate;
   int _rooms = 1;
-  int _adults = 2;
+  int _adults = 1;
   int _children = 0;
   String _searchType = 'city';
   List<String> _selectedAccommodationTypes = ['all'];
@@ -65,18 +65,15 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
 
   void _handleSearch() {
     String query = _searchController.text.trim();
+
+    // Validation
     if (query.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please enter a search term'),
-          backgroundColor: const Color(0xFFFF6F61),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+      _showSnackBar('Please enter a destination');
+      return;
+    }
+
+    if (_checkInDate == null || _checkOutDate == null) {
+      _showSnackBar('Please select check-in and check-out dates');
       return;
     }
 
@@ -95,13 +92,30 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
     );
   }
 
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFFF6F61),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   Map<String, dynamic> _buildSearchPayload(String query) {
+    // Only build payload if dates are selected
+    if (_checkInDate == null || _checkOutDate == null) {
+      return {};
+    }
+
     return {
       "searchCriteria": {
         "checkIn":
-            "${_checkInDate.year}-${_checkInDate.month.toString().padLeft(2, '0')}-${_checkInDate.day.toString().padLeft(2, '0')}",
+            "${_checkInDate!.year}-${_checkInDate!.month.toString().padLeft(2, '0')}-${_checkInDate!.day.toString().padLeft(2, '0')}",
         "checkOut":
-            "${_checkOutDate.year}-${_checkOutDate.month.toString().padLeft(2, '0')}-${_checkOutDate.day.toString().padLeft(2, '0')}",
+            "${_checkOutDate!.year}-${_checkOutDate!.month.toString().padLeft(2, '0')}-${_checkOutDate!.day.toString().padLeft(2, '0')}",
         "rooms": _rooms,
         "adults": _adults,
         "children": _children,
@@ -214,8 +228,10 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
   void _updateCheckInDate(DateTime date) {
     setState(() {
       _checkInDate = date;
-      if (_checkOutDate.isBefore(_checkInDate.add(const Duration(days: 1)))) {
-        _checkOutDate = _checkInDate.add(const Duration(days: 1));
+      // Auto-adjust checkout if it's before new check-in
+      if (_checkOutDate != null &&
+          _checkOutDate!.isBefore(_checkInDate!.add(const Duration(days: 1)))) {
+        _checkOutDate = _checkInDate!.add(const Duration(days: 1));
       }
     });
   }
@@ -282,8 +298,9 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
           SearchResultsScreen(
             searchController: _searchController,
             searchResults: _searchResults,
-            checkInDate: _checkInDate,
-            checkOutDate: _checkOutDate,
+            checkInDate: _checkInDate ?? DateTime.now(),
+            checkOutDate:
+                _checkOutDate ?? DateTime.now().add(const Duration(days: 1)),
             rooms: _rooms,
             adults: _adults,
             children: _children,

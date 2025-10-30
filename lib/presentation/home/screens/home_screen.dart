@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 
 class HomeScreen extends StatelessWidget {
   final TextEditingController searchController;
-  final DateTime checkInDate;
-  final DateTime checkOutDate;
+  final DateTime? checkInDate;
+  final DateTime? checkOutDate;
   final int rooms;
   final int adults;
   final int children;
@@ -27,8 +27,8 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
     required this.searchController,
-    required this.checkInDate,
-    required this.checkOutDate,
+    this.checkInDate,
+    this.checkOutDate,
     required this.rooms,
     required this.adults,
     required this.children,
@@ -93,173 +93,177 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
       child: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFF6F61).withOpacity(0.2),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipOval(
-                      child: Image.asset(
-                        'assets/myTravaly.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFFFF6F61), Color(0xFFFF8F84)],
-                            ),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF6F61).withOpacity(0.2),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
                           ),
-                          child: const Icon(
-                            Icons.apartment_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/myTravaly.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFFFF6F61),
+                                      Color(0xFFFF8F84),
+                                    ],
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.apartment_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'My Travaly',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFFF6F61),
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      Text(
-                        'Discover your perfect stay',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B6B6B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFF6F61).withOpacity(0.15),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.person_outline,
-                        color: Color(0xFFFF6F61),
-                      ),
-                      onPressed: () {},
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Search Filter Widget
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SearchFilterWidget(
-                searchController: searchController,
-                checkInDate: checkInDate,
-                checkOutDate: checkOutDate,
-                rooms: rooms,
-                adults: adults,
-                children: children,
-                selectedAccommodationTypes: selectedAccommodationTypes,
-                minPrice: minPrice,
-                maxPrice: maxPrice,
-                onSearch: onSearch,
-                onCheckInDateSelected: onCheckInDateSelected,
-                onCheckOutDateSelected: onCheckOutDateSelected,
-                onGuestRoomUpdate: onGuestRoomUpdate,
-                onFiltersUpdate: onFiltersUpdate,
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Section Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  const Text(
-                    'Featured Hotels',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF2C2C2C),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () {},
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFFF6F61),
-                      padding: EdgeInsets.zero,
-                    ),
-                    child: const Row(
+                    const SizedBox(width: 12),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'See all',
+                          'My Travaly',
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFFF6F61),
+                            letterSpacing: -0.5,
                           ),
                         ),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_forward_rounded, size: 16),
+                        Text(
+                          'Discover your perfect stay',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF6B6B6B),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                ],
+                    const Spacer(),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF6F61).withOpacity(0.15),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.person_outline,
+                          color: Color(0xFFFF6F61),
+                        ),
+                        onPressed: () {},
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 12),
-
-            // Hotel List
-            Expanded(
-              child: ListView.builder(
+              // Search Filter Widget
+              Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: _sampleHotels.length,
-                itemBuilder: (context, index) {
-                  final hotel = _sampleHotels[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: HotelCard(hotel: hotel),
-                  );
-                },
+                child: SearchFilterWidget(
+                  searchController: searchController,
+                  checkInDate: checkInDate,
+                  checkOutDate: checkOutDate,
+                  rooms: rooms,
+                  adults: adults,
+                  children: children,
+                  selectedAccommodationTypes: selectedAccommodationTypes,
+                  minPrice: minPrice,
+                  maxPrice: maxPrice,
+                  onSearch: onSearch,
+                  onCheckInDateSelected: onCheckInDateSelected,
+                  onCheckOutDateSelected: onCheckOutDateSelected,
+                  onGuestRoomUpdate: onGuestRoomUpdate,
+                  onFiltersUpdate: onFiltersUpdate,
+                ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 24),
+
+              // Section Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Featured Hotels',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2C2C2C),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () {},
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFFF6F61),
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: const Row(
+                        children: [
+                          Text(
+                            'See all',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_rounded, size: 16),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Hotel List
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: _sampleHotels.map((hotel) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: HotelCard(hotel: hotel),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

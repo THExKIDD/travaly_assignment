@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class SearchFilterWidget extends StatelessWidget {
   final TextEditingController searchController;
-  final DateTime checkInDate;
-  final DateTime checkOutDate;
+  final DateTime? checkInDate;
+  final DateTime? checkOutDate;
   final int rooms;
   final int adults;
   final int children;
@@ -24,8 +24,8 @@ class SearchFilterWidget extends StatelessWidget {
   const SearchFilterWidget({
     super.key,
     required this.searchController,
-    required this.checkInDate,
-    required this.checkOutDate,
+    this.checkInDate,
+    this.checkOutDate,
     required this.rooms,
     required this.adults,
     required this.children,
@@ -75,7 +75,9 @@ class SearchFilterWidget extends StatelessWidget {
       context: context,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDateRange: DateTimeRange(start: checkInDate, end: checkOutDate),
+      initialDateRange: checkInDate != null && checkOutDate != null
+          ? DateTimeRange(start: checkInDate!, end: checkOutDate!)
+          : null,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -649,7 +651,9 @@ class SearchFilterWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nights = checkOutDate.difference(checkInDate).inDays;
+    final nights = checkInDate != null && checkOutDate != null
+        ? checkOutDate!.difference(checkInDate!).inDays
+        : 0;
     final totalGuests = adults + children;
 
     return Container(
@@ -738,44 +742,49 @@ class SearchFilterWidget extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _formatDate(checkInDate),
-                          style: const TextStyle(
+                          checkInDate != null
+                              ? _formatDate(checkInDate!)
+                              : 'Select date',
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF2C2C2C),
+                            color: checkInDate != null
+                                ? const Color(0xFF2C2C2C)
+                                : const Color(0xFF6B6B6B).withOpacity(0.6),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF6F61).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.nights_stay_outlined,
-                          size: 14,
-                          color: Color(0xFFFF6F61),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$nights night${nights > 1 ? 's' : ''}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                  if (checkInDate != null && checkOutDate != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6F61).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.nights_stay_outlined,
+                            size: 14,
                             color: Color(0xFFFF6F61),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Text(
+                            '$nights night${nights > 1 ? 's' : ''}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFFF6F61),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -808,11 +817,15 @@ class SearchFilterWidget extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _formatDate(checkOutDate),
-                          style: const TextStyle(
+                          checkOutDate != null
+                              ? _formatDate(checkOutDate!)
+                              : 'Select date',
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF2C2C2C),
+                            color: checkOutDate != null
+                                ? const Color(0xFF2C2C2C)
+                                : const Color(0xFF6B6B6B).withOpacity(0.6),
                           ),
                         ),
                       ],
