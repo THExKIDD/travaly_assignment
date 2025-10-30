@@ -2,7 +2,7 @@ import 'package:assignment_travaly/core/services/dio/dio_client.dart';
 import 'package:assignment_travaly/presentation/auth/bloc/login_bloc.dart';
 import 'package:assignment_travaly/presentation/auth/bloc/login_event.dart';
 import 'package:assignment_travaly/presentation/auth/bloc/login_state.dart';
-import 'package:assignment_travaly/presentation/home/screens/home_screen.dart';
+import 'package:assignment_travaly/presentation/home/screens/root_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -32,7 +32,7 @@ class GoogleSignInView extends StatelessWidget {
           if (state.status == LoginStatus.success) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const HomePage()),
+              MaterialPageRoute(builder: (context) => const UnifiedHomePage()),
             );
           } else if (state.status == LoginStatus.failure) {
             ScaffoldMessenger.of(context).showSnackBar(

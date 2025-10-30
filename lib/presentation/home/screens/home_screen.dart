@@ -1,20 +1,49 @@
 import 'package:assignment_travaly/presentation/home/data/models/hotel_model.dart';
-import 'package:assignment_travaly/presentation/home/screens/search_results.dart';
 import 'package:assignment_travaly/presentation/home/widgets/hotel_card.dart';
+import 'package:assignment_travaly/presentation/home/widgets/search_filter_widget.dart';
 import 'package:flutter/material.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+class HomeScreen extends StatelessWidget {
+  final TextEditingController searchController;
+  final DateTime checkInDate;
+  final DateTime checkOutDate;
+  final int rooms;
+  final int adults;
+  final int children;
+  final List<String> selectedAccommodationTypes;
+  final double minPrice;
+  final double maxPrice;
+  final VoidCallback onSearch;
+  final Function(DateTime) onCheckInDateSelected;
+  final Function(DateTime) onCheckOutDateSelected;
+  final Function({int? rooms, int? adults, int? children}) onGuestRoomUpdate;
+  final Function({
+    List<String>? accommodationTypes,
+    double? minPrice,
+    double? maxPrice,
+  })
+  onFiltersUpdate;
 
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
+  const HomeScreen({
+    super.key,
+    required this.searchController,
+    required this.checkInDate,
+    required this.checkOutDate,
+    required this.rooms,
+    required this.adults,
+    required this.children,
+    required this.selectedAccommodationTypes,
+    required this.minPrice,
+    required this.maxPrice,
+    required this.onSearch,
+    required this.onCheckInDateSelected,
+    required this.onCheckOutDateSelected,
+    required this.onGuestRoomUpdate,
+    required this.onFiltersUpdate,
+  });
 
-class _HomePageState extends State<HomePage> {
-  final TextEditingController _searchController = TextEditingController();
-
-  // Sample hotel data
-  final List<Hotel> _sampleHotels = [
+  // Sample hotel data for home
+  static final List<Hotel> _sampleHotels = [
     Hotel(
       name: 'Grand Luxury Hotel',
       city: 'New York',
@@ -51,111 +80,188 @@ class _HomePageState extends State<HomePage> {
       pricePerNight: 199.99,
       imageUrl: 'https://picsum.photos/400/300?random=4',
     ),
-    Hotel(
-      name: 'Sunset Bay Hotel',
-      city: 'Los Angeles',
-      state: 'California',
-      country: 'USA',
-      rating: 4.9,
-      pricePerNight: 329.99,
-      imageUrl: 'https://picsum.photos/400/300?random=5',
-    ),
-    Hotel(
-      name: 'Historic Downtown Hotel',
-      city: 'Boston',
-      state: 'Massachusetts',
-      country: 'USA',
-      rating: 4.4,
-      pricePerNight: 219.99,
-      imageUrl: 'https://picsum.photos/400/300?random=6',
-    ),
   ];
-
-  void _handleSearch() {
-    String query = _searchController.text.trim();
-    if (query.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a search term')),
-      );
-      return;
-    }
-
-    // Navigate to search results page
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SearchResultsPage(searchQuery: query),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Discover Hotels'),
-        elevation: 0,
-        actions: [IconButton(icon: const Icon(Icons.person), onPressed: () {})],
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFF5F4), Color(0xFFFFF0EE), Color(0xFFFFE8E5)],
+        ),
       ),
-      body: Column(
-        children: [
-          // Search Bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search by name, city, state, or country...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _searchController.clear(),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF6F61).withOpacity(0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/myTravaly.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFFFF6F61), Color(0xFFFF8F84)],
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.apartment_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'My Travaly',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFFF6F61),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      Text(
+                        'Discover your perfect stay',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B6B6B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF6F61).withOpacity(0.15),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.person_outline,
+                        color: Color(0xFFFF6F61),
+                      ),
+                      onPressed: () {},
+                    ),
+                  ),
+                ],
               ),
-              onSubmitted: (_) => _handleSearch(),
             ),
-          ),
 
-          // Hotel List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _sampleHotels.length,
-              itemBuilder: (context, index) {
-                final hotel = _sampleHotels[index];
-                return HotelCard(hotel: hotel);
-              },
+            // Search Filter Widget
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SearchFilterWidget(
+                searchController: searchController,
+                checkInDate: checkInDate,
+                checkOutDate: checkOutDate,
+                rooms: rooms,
+                adults: adults,
+                children: children,
+                selectedAccommodationTypes: selectedAccommodationTypes,
+                minPrice: minPrice,
+                maxPrice: maxPrice,
+                onSearch: onSearch,
+                onCheckInDateSelected: onCheckInDateSelected,
+                onCheckOutDateSelected: onCheckOutDateSelected,
+                onGuestRoomUpdate: onGuestRoomUpdate,
+                onFiltersUpdate: onFiltersUpdate,
+              ),
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _handleSearch,
-        icon: const Icon(Icons.search),
-        label: const Text('Search'),
+
+            const SizedBox(height: 24),
+
+            // Section Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  const Text(
+                    'Featured Hotels',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF2C2C2C),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {},
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFFF6F61),
+                      padding: EdgeInsets.zero,
+                    ),
+                    child: const Row(
+                      children: [
+                        Text(
+                          'See all',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_rounded, size: 16),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Hotel List
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: _sampleHotels.length,
+                itemBuilder: (context, index) {
+                  final hotel = _sampleHotels[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: HotelCard(hotel: hotel),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 }

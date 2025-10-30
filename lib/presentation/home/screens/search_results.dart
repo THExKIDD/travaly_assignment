@@ -2,182 +2,712 @@ import 'package:assignment_travaly/presentation/home/data/models/hotel_model.dar
 import 'package:assignment_travaly/presentation/home/widgets/hotel_card.dart';
 import 'package:flutter/material.dart';
 
-class SearchResultsPage extends StatefulWidget {
-  final String searchQuery;
+class SearchResultsScreen extends StatelessWidget {
+  final TextEditingController searchController;
+  final List<Hotel> searchResults;
+  final DateTime checkInDate;
+  final DateTime checkOutDate;
+  final int rooms;
+  final int adults;
+  final int children;
+  final bool isLoading;
+  final bool hasMoreData;
+  final ScrollController scrollController;
+  final List<String> selectedAccommodationTypes;
+  final double minPrice;
+  final double maxPrice;
+  final VoidCallback onBack;
+  final Function({
+    List<String>? accommodationTypes,
+    double? minPrice,
+    double? maxPrice,
+  })
+  onFiltersUpdate;
+  final VoidCallback onApplyFilters;
 
-  const SearchResultsPage({super.key, required this.searchQuery});
+  const SearchResultsScreen({
+    super.key,
+    required this.searchController,
+    required this.searchResults,
+    required this.checkInDate,
+    required this.checkOutDate,
+    required this.rooms,
+    required this.adults,
+    required this.children,
+    required this.isLoading,
+    required this.hasMoreData,
+    required this.scrollController,
+    required this.selectedAccommodationTypes,
+    required this.minPrice,
+    required this.maxPrice,
+    required this.onBack,
+    required this.onFiltersUpdate,
+    required this.onApplyFilters,
+  });
 
-  @override
-  State<SearchResultsPage> createState() => _SearchResultsPageState();
-}
+  // Accommodation type options
+  static final List<Map<String, dynamic>> _accommodationTypes = [
+    {'value': 'all', 'label': 'All', 'icon': Icons.hotel},
+    {'value': 'hotel', 'label': 'Hotel', 'icon': Icons.apartment},
+    {'value': 'resort', 'label': 'Resort', 'icon': Icons.pool},
+    {'value': 'Boat House', 'label': 'Boat House', 'icon': Icons.sailing},
+    {'value': 'bedAndBreakfast', 'label': 'B&B', 'icon': Icons.bed},
+    {'value': 'guestHouse', 'label': 'Guest House', 'icon': Icons.house},
+    {
+      'value': 'apartment',
+      'label': 'Apartment',
+      'icon': Icons.apartment_outlined,
+    },
+    {'value': 'Villa', 'label': 'Villa', 'icon': Icons.villa},
+    {'value': 'hostel', 'label': 'Hostel', 'icon': Icons.groups},
+  ];
 
-class _SearchResultsPageState extends State<SearchResultsPage> {
-  final ScrollController _scrollController = ScrollController();
-  List<Hotel> _searchResults = [];
-  int _currentPage = 1;
-  final int _itemsPerPage = 10;
-  bool _isLoading = false;
-  bool _hasMoreData = true;
+  void _showFiltersModal(BuildContext context) {
+    List<String> tempAccommodationTypes = List.from(selectedAccommodationTypes);
+    double tempMinPrice = minPrice;
+    double tempMaxPrice = maxPrice;
 
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-    _loadInitialResults();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Text(
+                          'Filters',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2C2C2C),
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () {
+                            setModalState(() {
+                              tempAccommodationTypes = ['all'];
+                              tempMinPrice = 0;
+                              tempMaxPrice = 50000;
+                            });
+                          },
+                          child: const Text(
+                            'Reset',
+                            style: TextStyle(
+                              color: Color(0xFFFF6F61),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Price Range
+                      const Text(
+                        'Price Range',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2C2C2C),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF6F61).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Min',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF6B6B6B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${tempMinPrice.toInt()}',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFFF6F61),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF6F61).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Max',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF6B6B6B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${tempMaxPrice.toInt()}',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFFF6F61),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      RangeSlider(
+                        values: RangeValues(tempMinPrice, tempMaxPrice),
+                        min: 0,
+                        max: 50000,
+                        divisions: 100,
+                        activeColor: const Color(0xFFFF6F61),
+                        inactiveColor: const Color(0xFFFF6F61).withOpacity(0.2),
+                        onChanged: (values) {
+                          setModalState(() {
+                            tempMinPrice = values.start;
+                            tempMaxPrice = values.end;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 32),
+                      // Accommodation Types
+                      const Text(
+                        'Property Type',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2C2C2C),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _accommodationTypes.map((type) {
+                          final isSelected = tempAccommodationTypes.contains(
+                            type['value'],
+                          );
+                          return InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                if (type['value'] == 'all') {
+                                  tempAccommodationTypes = ['all'];
+                                } else {
+                                  tempAccommodationTypes.remove('all');
+                                  if (isSelected) {
+                                    tempAccommodationTypes.remove(
+                                      type['value'],
+                                    );
+                                    if (tempAccommodationTypes.isEmpty) {
+                                      tempAccommodationTypes = ['all'];
+                                    }
+                                  } else {
+                                    tempAccommodationTypes.add(type['value']);
+                                  }
+                                }
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFFFF6F61)
+                                    : Colors.white,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFFFF6F61)
+                                      : const Color(0xFFE0E0E0),
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    type['icon'],
+                                    size: 18,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : const Color(0xFF6B6B6B),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    type['label'],
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : const Color(0xFF2C2C2C),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Footer
+              Container(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 16,
+                  bottom: MediaQuery.of(context).padding.bottom + 16,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      onFiltersUpdate(
+                        accommodationTypes: tempAccommodationTypes,
+                        minPrice: tempMinPrice,
+                        maxPrice: tempMaxPrice,
+                      );
+                      Navigator.pop(context);
+                      onApplyFilters();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6F61),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Apply Filters',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent * 0.8) {
-      if (!_isLoading && _hasMoreData) {
-        _loadMoreResults();
-      }
-    }
-  }
-
-  void _loadInitialResults() {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Simulate API call with mock data
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() {
-        _searchResults = _generateMockResults(_currentPage);
-        _isLoading = false;
-      });
-    });
-  }
-
-  void _loadMoreResults() {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Simulate API call for pagination
-    Future.delayed(const Duration(seconds: 1), () {
-      _currentPage++;
-      final newResults = _generateMockResults(_currentPage);
-
-      setState(() {
-        if (newResults.isEmpty) {
-          _hasMoreData = false;
-        } else {
-          _searchResults.addAll(newResults);
-        }
-        _isLoading = false;
-      });
-    });
-  }
-
-  List<Hotel> _generateMockResults(int page) {
-    // Simulate API response with pagination
-    // After 3 pages, return empty list to simulate no more data
-    if (page > 3) return [];
-
-    final cities = [
-      'New York',
-      'Miami',
-      'Chicago',
-      'Los Angeles',
-      'Boston',
-      'Seattle',
-      'Austin',
-      'Denver',
+  String _getMonthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
-    final states = [
-      'New York',
-      'Florida',
-      'Illinois',
-      'California',
-      'Massachusetts',
-      'Washington',
-      'Texas',
-      'Colorado',
-    ];
-
-    return List.generate(_itemsPerPage, (index) {
-      final globalIndex = (page - 1) * _itemsPerPage + index;
-      final cityIndex = globalIndex % cities.length;
-
-      return Hotel(
-        name: 'Hotel ${widget.searchQuery} ${globalIndex + 1}',
-        city: cities[cityIndex],
-        state: states[cityIndex],
-        country: 'USA',
-        rating: 4.0 + (globalIndex % 10) / 10,
-        pricePerNight: 150.0 + (globalIndex * 20),
-        imageUrl: 'https://picsum.photos/400/300?random=${globalIndex + 10}',
-      );
-    });
+    return months[month - 1];
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Results for "${widget.searchQuery}"'),
-        elevation: 0,
+    final nights = checkOutDate.difference(checkInDate).inDays;
+    final totalGuests = adults + children;
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFF5F4), Color(0xFFFFF0EE), Color(0xFFFFE8E5)],
+        ),
       ),
-      body: _searchResults.isEmpty && _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _searchResults.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Header with back button
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
                 children: [
-                  Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No results found',
-                    style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF6F61).withOpacity(0.15),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back_rounded,
+                        color: Color(0xFFFF6F61),
+                      ),
+                      onPressed: onBack,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Search Results',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2C2C2C),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        Text(
+                          'for "${searchController.text}"',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: const Color(0xFF6B6B6B).withOpacity(0.8),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF6F61).withOpacity(0.15),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.tune_rounded,
+                        color: Color(0xFFFF6F61),
+                      ),
+                      onPressed: () => _showFiltersModal(context),
+                    ),
                   ),
                 ],
               ),
-            )
-          : Column(
-              children: [
-                // Results count
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  width: double.infinity,
-                  color: Colors.grey.shade100,
-                  child: Text(
-                    '${_searchResults.length} hotels found',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-
-                // Results list
-                Expanded(
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _searchResults.length + (_hasMoreData ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == _searchResults.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-
-                      final hotel = _searchResults[index];
-                      return HotelCard(hotel: hotel);
-                    },
-                  ),
-                ),
-              ],
             ),
-    );
-  }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
+            // Search Summary Card
+            if (searchResults.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFF6F61).withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF6F61).withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.hotel_rounded,
+                              color: Color(0xFFFF6F61),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            '${searchResults.length} hotels found',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF2C2C2C),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF5F4),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 14,
+                                    color: Color(0xFF6B6B6B),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${checkInDate.day} ${_getMonthName(checkInDate.month)} - ${checkOutDate.day} ${_getMonthName(checkOutDate.month)}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF2C2C2C),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFFFF6F61,
+                                ).withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '$nights ${nights == 1 ? 'night' : 'nights'}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFFF6F61),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.people_outline_rounded,
+                                  size: 14,
+                                  color: Color(0xFF6B6B6B),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '$totalGuests, $rooms ${rooms == 1 ? 'room' : 'rooms'}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF2C2C2C),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
+            // Results list
+            Expanded(
+              child: searchResults.isEmpty && isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFFF6F61),
+                      ),
+                    )
+                  : searchResults.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF6F61).withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.search_off_rounded,
+                              size: 64,
+                              color: Color(0xFFFF6F61),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'No results found',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF2C2C2C),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Try searching with different keywords',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: const Color(0xFF6B6B6B).withOpacity(0.8),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: searchResults.length + (hasMoreData ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == searchResults.length) {
+                          return Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFFFF6F61,
+                                      ).withOpacity(0.2),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const CircularProgressIndicator(
+                                  color: Color(0xFFFF6F61),
+                                  strokeWidth: 3,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final hotel = searchResults[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: HotelCard(hotel: hotel),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
