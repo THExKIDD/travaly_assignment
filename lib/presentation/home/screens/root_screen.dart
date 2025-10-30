@@ -64,6 +64,7 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
   }
 
   void _handleSearch() {
+    FocusScope.of(context).unfocus();
     String query = _searchController.text.trim();
 
     // Validation

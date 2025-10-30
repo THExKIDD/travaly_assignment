@@ -1,6 +1,7 @@
+import 'package:assignment_travaly/core/theme/app_theme_data.dart';
 import 'package:flutter/material.dart';
 
-class SearchFilterWidget extends StatelessWidget {
+class SearchFilterWidget extends StatefulWidget {
   final TextEditingController searchController;
   final DateTime? checkInDate;
   final DateTime? checkOutDate;
@@ -70,13 +71,21 @@ class SearchFilterWidget extends StatelessWidget {
     {'value': 'co_living', 'label': 'Co-living', 'icon': Icons.people},
   ];
 
+  @override
+  State<SearchFilterWidget> createState() => _SearchFilterWidgetState();
+}
+
+class _SearchFilterWidgetState extends State<SearchFilterWidget> {
+  bool _hasText = false;
+
   Future<void> _selectDateRange(BuildContext context) async {
     final DateTimeRange? picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDateRange: checkInDate != null && checkOutDate != null
-          ? DateTimeRange(start: checkInDate!, end: checkOutDate!)
+      initialDateRange:
+          widget.checkInDate != null && widget.checkOutDate != null
+          ? DateTimeRange(start: widget.checkInDate!, end: widget.checkOutDate!)
           : null,
       builder: (context, child) {
         return Theme(
@@ -103,15 +112,15 @@ class SearchFilterWidget extends StatelessWidget {
     );
 
     if (picked != null) {
-      onCheckInDateSelected(picked.start);
-      onCheckOutDateSelected(picked.end);
+      widget.onCheckInDateSelected(picked.start);
+      widget.onCheckOutDateSelected(picked.end);
     }
   }
 
   void _showGuestRoomSelector(BuildContext context) {
-    int tempRooms = rooms;
-    int tempAdults = adults;
-    int tempChildren = children;
+    int tempRooms = widget.rooms;
+    int tempAdults = widget.adults;
+    int tempChildren = widget.children;
 
     showModalBottomSheet(
       context: context,
@@ -184,7 +193,7 @@ class SearchFilterWidget extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    onGuestRoomUpdate(
+                    widget.onGuestRoomUpdate(
                       rooms: tempRooms,
                       adults: tempAdults,
                       children: tempChildren,
@@ -291,9 +300,11 @@ class SearchFilterWidget extends StatelessWidget {
   }
 
   void _showFiltersModal(BuildContext context) {
-    List<String> tempAccommodationTypes = List.from(selectedAccommodationTypes);
-    double tempMinPrice = minPrice;
-    double tempMaxPrice = maxPrice;
+    List<String> tempAccommodationTypes = List.from(
+      widget.selectedAccommodationTypes,
+    );
+    double tempMinPrice = widget.minPrice;
+    double tempMaxPrice = widget.maxPrice;
 
     showModalBottomSheet(
       context: context,
@@ -503,7 +514,9 @@ class SearchFilterWidget extends StatelessWidget {
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: _accommodationTypes.map((type) {
+                        children: SearchFilterWidget._accommodationTypes.map((
+                          type,
+                        ) {
                           final isSelected = tempAccommodationTypes.contains(
                             type['value'],
                           );
@@ -597,13 +610,13 @@ class SearchFilterWidget extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      onFiltersUpdate(
+                      widget.onFiltersUpdate(
                         accommodationTypes: tempAccommodationTypes,
                         minPrice: tempMinPrice,
                         maxPrice: tempMaxPrice,
                       );
                       Navigator.pop(context);
-                      onSearch();
+                      widget.onSearch();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFF6F61),
@@ -650,11 +663,37 @@ class SearchFilterWidget extends StatelessWidget {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Add listener to controller
+    widget.searchController.addListener(_onTextChanged);
+    // Initialize state
+    _hasText = widget.searchController.text.isNotEmpty;
+  }
+
+  @override
+  void dispose() {
+    // Remove listener to prevent memory leaks
+    widget.searchController.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  void _onTextChanged() {
+    // Only update state if the value actually changed
+    final hasTextNow = widget.searchController.text.isNotEmpty;
+    if (hasTextNow != _hasText) {
+      setState(() {
+        _hasText = hasTextNow;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final nights = checkInDate != null && checkOutDate != null
-        ? checkOutDate!.difference(checkInDate!).inDays
+    final nights = widget.checkInDate != null && widget.checkOutDate != null
+        ? widget.checkOutDate!.difference(widget.checkInDate!).inDays
         : 0;
-    final totalGuests = adults + children;
+    final totalGuests = widget.adults + widget.children;
 
     return Container(
       decoration: BoxDecoration(
@@ -674,7 +713,10 @@ class SearchFilterWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             child: TextField(
-              controller: searchController,
+              onTapOutside: (_) {
+                FocusScope.of(context).unfocus();
+              },
+              controller: widget.searchController,
               decoration: InputDecoration(
                 hintText: 'Where do you want to go?',
                 hintStyle: TextStyle(
@@ -687,6 +729,14 @@ class SearchFilterWidget extends StatelessWidget {
                   color: Color(0xFFFF6F61),
                   size: 24,
                 ),
+                suffixIcon: _hasText
+                    ? IconButton(
+                        onPressed: () {
+                          widget.searchController.clear();
+                        },
+                        icon: Icon(Icons.close, color: AppTheme.primaryCoral),
+                      )
+                    : null,
                 filled: true,
                 fillColor: const Color(0xFFFFF5F4),
                 border: OutlineInputBorder(
@@ -698,7 +748,7 @@ class SearchFilterWidget extends StatelessWidget {
                   vertical: 14,
                 ),
               ),
-              onSubmitted: (_) => onSearch(),
+              onSubmitted: (_) => widget.onSearch(),
             ),
           ),
 
@@ -742,13 +792,13 @@ class SearchFilterWidget extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          checkInDate != null
-                              ? _formatDate(checkInDate!)
+                          widget.checkInDate != null
+                              ? _formatDate(widget.checkInDate!)
                               : 'Select date',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: checkInDate != null
+                            color: widget.checkInDate != null
                                 ? const Color(0xFF2C2C2C)
                                 : const Color(0xFF6B6B6B).withOpacity(0.6),
                           ),
@@ -756,7 +806,7 @@ class SearchFilterWidget extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (checkInDate != null && checkOutDate != null)
+                  if (widget.checkInDate != null && widget.checkOutDate != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -817,13 +867,13 @@ class SearchFilterWidget extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          checkOutDate != null
-                              ? _formatDate(checkOutDate!)
+                          widget.checkOutDate != null
+                              ? _formatDate(widget.checkOutDate!)
                               : 'Select date',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: checkOutDate != null
+                            color: widget.checkOutDate != null
                                 ? const Color(0xFF2C2C2C)
                                 : const Color(0xFF6B6B6B).withOpacity(0.6),
                           ),
@@ -880,7 +930,7 @@ class SearchFilterWidget extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '$totalGuests Guest${totalGuests > 1 ? 's' : ''} • $rooms Room${rooms > 1 ? 's' : ''}',
+                            '$totalGuests Guest${totalGuests > 1 ? 's' : ''} • ${widget.rooms} Room${widget.rooms > 1 ? 's' : ''}',
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -919,10 +969,12 @@ class SearchFilterWidget extends StatelessWidget {
                                       color: Color(0xFFFF6F61),
                                       size: 16,
                                     ),
-                                    if (selectedAccommodationTypes.first !=
+                                    if (widget
+                                                .selectedAccommodationTypes
+                                                .first !=
                                             'all' ||
-                                        minPrice != 0 ||
-                                        maxPrice != 50000)
+                                        widget.minPrice != 0 ||
+                                        widget.maxPrice != 50000)
                                       Positioned(
                                         right: -2,
                                         top: -2,
@@ -951,9 +1003,9 @@ class SearchFilterWidget extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            selectedAccommodationTypes.first == 'all'
+                            widget.selectedAccommodationTypes.first == 'all'
                                 ? 'All Properties'
-                                : '${selectedAccommodationTypes.length} Type${selectedAccommodationTypes.length > 1 ? 's' : ''}',
+                                : '${widget.selectedAccommodationTypes.length} Type${widget.selectedAccommodationTypes.length > 1 ? 's' : ''}',
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -977,7 +1029,7 @@ class SearchFilterWidget extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: onSearch,
+                onPressed: widget.onSearch,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF6F61),
                   foregroundColor: Colors.white,

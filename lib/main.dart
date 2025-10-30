@@ -12,7 +12,7 @@ Future<void> main() async {
       systemNavigationBarColor: Colors.transparent,
       systemNavigationBarContrastEnforced: false,
       systemNavigationBarIconBrightness: Brightness.light,
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
     ),
   );
   await DioClient().initialize();
