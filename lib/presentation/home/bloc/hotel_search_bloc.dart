@@ -1,5 +1,6 @@
 import 'package:assignment_travaly/presentation/home/data/models/hotel_model.dart';
 import 'package:assignment_travaly/presentation/home/data/models/search_autocomplete_model.dart';
+import 'package:assignment_travaly/presentation/home/data/repo/hotel_search_repo.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'hotel_search_event.dart';
@@ -412,104 +413,36 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
     AutocompleteResultSelected event,
     Emitter<HotelSearchState> emit,
   ) {
-    // 1. Update the search query text field state
-    // 2. Clear autocomplete results
-    // 3. Update the search type for the main search
-    // 4. Optionally, initiate a full search immediately (SearchSubmitted or SearchInitiated)
-
     emit(
       state.copyWith(
         searchQuery: event.query,
         searchType: event.searchType,
         autocompleteResults: [], // Clear suggestions
         autocompleteStatus: AutocompleteStatus.initial,
-        // The event.searchQueries are the specific parameters to be used in the next SearchSubmitted event,
-        // but since `searchQuery` is a single String in state, we'll only update the main one for now.
-        // In a real app, you would also store the complete search object/ID.
       ),
     );
-
-    // The user has selected a destination, now trigger the search logic
-    // We can initiate the search, but require dates to be picked, so we only update the state.
-    // The UI should now prompt the user to select dates and submit.
   }
 
-  // --- Private Helper Method for Autocomplete Mock ---
   Future<List<AutocompleteItem>> _fetchAutocompleteResults(String query) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      final HotelSearchRepo hotelSearchRepo = HotelSearchRepo();
 
-    // Mock data structure based on the provided JSON
-    final mockData = {
-      "present": true,
-      "totalNumberOfResult": 7,
-      "autoCompleteList": {
-        "byPropertyName": {
-          "present": true,
-          "listOfResult": [
-            {
-              "valueToDisplay": "Regenta Inn, Indiranagar",
-              "propertyName": "Regenta Inn, Indiranagar",
-              "address": {"city": "Bangalore", "state": "Karnataka"},
-              "searchArray": {
-                "type": "hotelIdSearch",
-                "query": ["zgRpricB"],
-              },
-            },
-            // ... more results
-          ],
-          "numberOfResult": 1,
-        },
-        "byStreet": {"present": false, "listOfResult": [], "numberOfResult": 0},
-        "byCity": {
-          "present": true,
-          "listOfResult": [
-            {
-              "valueToDisplay": "Bengaluru",
-              "address": {
-                "city": "Bengaluru",
-                "state": "Karnataka",
-                "country": "India",
-              },
-              "searchArray": {
-                "type": "citySearch",
-                "query": ["Bengaluru", "Karnataka", "India"],
-              },
-            },
-          ],
-          "numberOfResult": 1,
-        },
-        "byState": {"present": false, "listOfResult": [], "numberOfResult": 0},
-        "byCountry": {
-          "present": true,
-          "listOfResult": [
-            {
-              "valueToDisplay": "India",
-              "address": {"country": "India"},
-              "searchArray": {
-                "type": "countrySearch",
-                "query": ["India"],
-              },
-            },
-          ],
-          "numberOfResult": 1,
-        },
-      },
-    };
+      final AutocompleteData data = await hotelSearchRepo
+          .fetchSearchSuggestions(query: query);
 
-    // Filter mock results based on the query for a slightly better demo
-    final AutocompleteData data = AutocompleteData.fromJson(mockData);
+      final filteredResults = data.autoCompleteList.getGroupedResults().where((
+        item,
+      ) {
+        if (item.isHeader) return true;
+        return item.result!.valueToDisplay.toLowerCase().contains(
+          query.toLowerCase(),
+        );
+      }).toList();
 
-    final filteredResults = data.autoCompleteList.getGroupedResults().where((
-      item,
-    ) {
-      if (item.isHeader) return true;
-      return item.result!.valueToDisplay.toLowerCase().contains(
-        query.toLowerCase(),
-      );
-    }).toList();
-
-    return filteredResults;
+      return filteredResults;
+    } catch (e) {
+      return [];
+    }
   }
 
   // Method to build search payload for API calls
