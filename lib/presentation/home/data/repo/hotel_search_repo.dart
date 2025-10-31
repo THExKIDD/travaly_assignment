@@ -15,13 +15,7 @@ class HotelSearchRepo {
         data: {
           "searchAutoComplete": {
             "inputText": query,
-            "searchType": [
-              "byCity",
-              "byState",
-              "byCountry",
-              "byRandom",
-              "byPropertyName",
-            ],
+            "searchType": ["byCity", "byState"],
             "limit": 10,
           },
         },
