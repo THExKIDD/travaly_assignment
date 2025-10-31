@@ -1,0 +1,519 @@
+import 'package:assignment_travaly/presentation/home/data/models/hotel_model.dart';
+import 'package:assignment_travaly/presentation/home/data/models/search_autocomplete_model.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'hotel_search_event.dart';
+import 'hotel_search_state.dart';
+
+class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
+  HotelSearchBloc() : super(const HotelSearchState()) {
+    // Search Query Events
+    on<SearchQueryChanged>(_onSearchQueryChanged);
+    on<SearchQueryCleared>(_onSearchQueryCleared);
+
+    // Date Selection Events
+    on<CheckInDateSelected>(_onCheckInDateSelected);
+    on<CheckOutDateSelected>(_onCheckOutDateSelected);
+    on<DateRangeSelected>(_onDateRangeSelected);
+
+    // Guest and Room Events
+    on<RoomsUpdated>(_onRoomsUpdated);
+    on<AdultsUpdated>(_onAdultsUpdated);
+    on<ChildrenUpdated>(_onChildrenUpdated);
+    on<GuestRoomDataUpdated>(_onGuestRoomDataUpdated);
+
+    // Filter Events
+    on<AccommodationTypesUpdated>(_onAccommodationTypesUpdated);
+    on<PriceRangeUpdated>(_onPriceRangeUpdated);
+    on<FiltersUpdated>(_onFiltersUpdated);
+    on<FiltersReset>(_onFiltersReset);
+
+    // Search Execution Events
+    on<SearchSubmitted>(_onSearchSubmitted);
+    on<SearchInitiated>(_onSearchInitiated);
+    on<LoadMoreResults>(_onLoadMoreResults);
+    on<SearchResultsCleared>(_onSearchResultsCleared);
+
+    // Navigation Events
+    on<NavigateToSearchResults>(_onNavigateToSearchResults);
+    on<NavigateToHome>(_onNavigateToHome);
+
+    //Auto-complete Handlers
+    on<FetchAutocomplete>(_onFetchAutocomplete);
+    on<AutocompleteResultSelected>(_onAutocompleteResultSelected);
+
+    // Additional Helper Events
+    on<SearchModeEnabled>(_onSearchModeEnabled);
+    on<SearchModeDisabled>(_onSearchModeDisabled);
+    on<RetrySearch>(_onRetrySearch);
+  }
+
+  // Search Query Handlers
+  void _onSearchQueryChanged(
+    SearchQueryChanged event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(state.copyWith(searchQuery: event.query));
+  }
+
+  void _onSearchQueryCleared(
+    SearchQueryCleared event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(state.copyWith(searchQuery: ''));
+  }
+
+  // Date Selection Handlers
+  void _onCheckInDateSelected(
+    CheckInDateSelected event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    DateTime? checkOut = state.checkOutDate;
+
+    // Auto-adjust checkout if it's before new check-in
+    if (checkOut != null &&
+        checkOut.isBefore(event.date.add(const Duration(days: 1)))) {
+      checkOut = event.date.add(const Duration(days: 1));
+    }
+
+    emit(state.copyWith(checkInDate: event.date, checkOutDate: checkOut));
+  }
+
+  void _onCheckOutDateSelected(
+    CheckOutDateSelected event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(state.copyWith(checkOutDate: event.date));
+  }
+
+  void _onDateRangeSelected(
+    DateRangeSelected event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(
+      state.copyWith(checkInDate: event.checkIn, checkOutDate: event.checkOut),
+    );
+  }
+
+  // Guest and Room Handlers
+  void _onRoomsUpdated(RoomsUpdated event, Emitter<HotelSearchState> emit) {
+    emit(state.copyWith(rooms: event.rooms));
+  }
+
+  void _onAdultsUpdated(AdultsUpdated event, Emitter<HotelSearchState> emit) {
+    emit(state.copyWith(adults: event.adults));
+  }
+
+  void _onChildrenUpdated(
+    ChildrenUpdated event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(state.copyWith(children: event.children));
+  }
+
+  void _onGuestRoomDataUpdated(
+    GuestRoomDataUpdated event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        rooms: event.rooms,
+        adults: event.adults,
+        children: event.children,
+      ),
+    );
+  }
+
+  // Filter Handlers
+  void _onAccommodationTypesUpdated(
+    AccommodationTypesUpdated event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(state.copyWith(selectedAccommodationTypes: event.types));
+  }
+
+  void _onPriceRangeUpdated(
+    PriceRangeUpdated event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(state.copyWith(minPrice: event.minPrice, maxPrice: event.maxPrice));
+  }
+
+  void _onFiltersUpdated(FiltersUpdated event, Emitter<HotelSearchState> emit) {
+    emit(
+      state.copyWith(
+        selectedAccommodationTypes: event.accommodationTypes,
+        minPrice: event.minPrice,
+        maxPrice: event.maxPrice,
+      ),
+    );
+  }
+
+  void _onFiltersReset(FiltersReset event, Emitter<HotelSearchState> emit) {
+    emit(state.resetFilters());
+  }
+
+  // Search Execution Handlers
+  Future<void> _onSearchSubmitted(
+    SearchSubmitted event,
+    Emitter<HotelSearchState> emit,
+  ) async {
+    // Validation
+    if (state.searchQuery.trim().isEmpty) {
+      emit(
+        state.copyWith(
+          searchStatus: SearchStatus.failure,
+          errorMessage: 'Please enter a destination',
+        ),
+      );
+      return;
+    }
+
+    if (!state.hasValidDates) {
+      emit(
+        state.copyWith(
+          searchStatus: SearchStatus.failure,
+          errorMessage: 'Please select check-in and check-out dates',
+        ),
+      );
+      return;
+    }
+
+    // Reset search state and initiate search
+    emit(
+      state.copyWith(
+        isSearchMode: true,
+        searchStatus: SearchStatus.loading,
+        searchResults: [],
+        currentPage: 1,
+        hasMoreData: true,
+        errorMessage: null,
+      ),
+    );
+
+    await _performSearch(emit);
+  }
+
+  Future<void> _onSearchInitiated(
+    SearchInitiated event,
+    Emitter<HotelSearchState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        searchQuery: event.query,
+        isSearchMode: true,
+        searchStatus: SearchStatus.loading,
+        searchResults: [],
+        currentPage: 1,
+        hasMoreData: true,
+        errorMessage: null,
+      ),
+    );
+
+    await _performSearch(emit);
+  }
+
+  Future<void> _onLoadMoreResults(
+    LoadMoreResults event,
+    Emitter<HotelSearchState> emit,
+  ) async {
+    if (!state.hasMoreData || state.isLoadingMore) return;
+
+    emit(
+      state.copyWith(
+        searchStatus: SearchStatus.loadingMore,
+        currentPage: state.currentPage + 1,
+      ),
+    );
+
+    await _performSearch(emit, isLoadMore: true);
+  }
+
+  void _onSearchResultsCleared(
+    SearchResultsCleared event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(state.resetSearch());
+  }
+
+  // Navigation Handlers
+  void _onNavigateToSearchResults(
+    NavigateToSearchResults event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(state.copyWith(isSearchMode: true));
+  }
+
+  void _onNavigateToHome(NavigateToHome event, Emitter<HotelSearchState> emit) {
+    emit(state.copyWith(isSearchMode: false));
+  }
+
+  // Helper Event Handlers
+  void _onSearchModeEnabled(
+    SearchModeEnabled event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(state.copyWith(isSearchMode: true));
+  }
+
+  void _onSearchModeDisabled(
+    SearchModeDisabled event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    emit(state.copyWith(isSearchMode: false));
+  }
+
+  Future<void> _onRetrySearch(
+    RetrySearch event,
+    Emitter<HotelSearchState> emit,
+  ) async {
+    emit(
+      state.copyWith(searchStatus: SearchStatus.loading, errorMessage: null),
+    );
+
+    await _performSearch(emit);
+  }
+
+  // Private Helper Methods
+  Future<void> _performSearch(
+    Emitter<HotelSearchState> emit, {
+    bool isLoadMore = false,
+  }) async {
+    try {
+      // In a real implementation, you would call your API here
+      // For now, using mock data
+
+      // Simulate network delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // Generate mock results
+      final newResults = _generateMockResults(
+        state.currentPage,
+        state.searchQuery,
+      );
+
+      if (newResults.isEmpty) {
+        if (isLoadMore) {
+          emit(
+            state.copyWith(
+              searchStatus: SearchStatus.success,
+              hasMoreData: false,
+            ),
+          );
+        } else {
+          emit(
+            state.copyWith(
+              searchStatus: SearchStatus.empty,
+              searchResults: [],
+              hasMoreData: false,
+            ),
+          );
+        }
+        return;
+      }
+
+      final updatedResults = isLoadMore
+          ? [...state.searchResults, ...newResults]
+          : newResults;
+
+      emit(
+        state.copyWith(
+          searchStatus: SearchStatus.success,
+          searchResults: updatedResults,
+          hasMoreData: newResults.length == state.itemsPerPage,
+          errorMessage: null,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          searchStatus: SearchStatus.failure,
+          errorMessage: 'Failed to load results. Please try again.',
+        ),
+      );
+    }
+  }
+
+  List<Hotel> _generateMockResults(int page, String query) {
+    // Stop after 3 pages
+    if (page > 3) return [];
+
+    final cities = [
+      'New York',
+      'Miami',
+      'Chicago',
+      'Los Angeles',
+      'Boston',
+      'Seattle',
+      'Austin',
+      'Denver',
+    ];
+    final states = [
+      'New York',
+      'Florida',
+      'Illinois',
+      'California',
+      'Massachusetts',
+      'Washington',
+      'Texas',
+      'Colorado',
+    ];
+
+    return List.generate(state.itemsPerPage, (index) {
+      final globalIndex = (page - 1) * state.itemsPerPage + index;
+      final cityIndex = globalIndex % cities.length;
+
+      return Hotel(
+        name: 'Hotel $query ${globalIndex + 1}',
+        city: cities[cityIndex],
+        state: states[cityIndex],
+        country: 'USA',
+        rating: 4.0 + (globalIndex % 10) / 10,
+        pricePerNight: 150.0 + (globalIndex * 20),
+        imageUrl: 'https://picsum.photos/400/300?random=${globalIndex + 10}',
+      );
+    });
+  }
+
+  Future<void> _onFetchAutocomplete(
+    FetchAutocomplete event,
+    Emitter<HotelSearchState> emit,
+  ) async {
+    final query = event.query.trim();
+
+    if (query.isEmpty) {
+      // Clear results if query is empty
+      return emit(
+        state.copyWith(
+          autocompleteResults: [],
+          autocompleteStatus: AutocompleteStatus.initial,
+        ),
+      );
+    }
+
+    emit(state.copyWith(autocompleteStatus: AutocompleteStatus.loading));
+
+    try {
+      // API call placeholder
+      final results = await _fetchAutocompleteResults(query);
+
+      emit(
+        state.copyWith(
+          autocompleteResults: results,
+          autocompleteStatus: AutocompleteStatus.success,
+        ),
+      );
+    } catch (e) {
+      emit(state.copyWith(autocompleteStatus: AutocompleteStatus.failure));
+    }
+  }
+
+  void _onAutocompleteResultSelected(
+    AutocompleteResultSelected event,
+    Emitter<HotelSearchState> emit,
+  ) {
+    // 1. Update the search query text field state
+    // 2. Clear autocomplete results
+    // 3. Update the search type for the main search
+    // 4. Optionally, initiate a full search immediately (SearchSubmitted or SearchInitiated)
+
+    emit(
+      state.copyWith(
+        searchQuery: event.query,
+        searchType: event.searchType,
+        autocompleteResults: [], // Clear suggestions
+        autocompleteStatus: AutocompleteStatus.initial,
+        // The event.searchQueries are the specific parameters to be used in the next SearchSubmitted event,
+        // but since `searchQuery` is a single String in state, we'll only update the main one for now.
+        // In a real app, you would also store the complete search object/ID.
+      ),
+    );
+
+    // The user has selected a destination, now trigger the search logic
+    // We can initiate the search, but require dates to be picked, so we only update the state.
+    // The UI should now prompt the user to select dates and submit.
+  }
+
+  // --- Private Helper Method for Autocomplete Mock ---
+  Future<List<AutocompleteItem>> _fetchAutocompleteResults(String query) async {
+    // Simulate network delay
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // Mock data structure based on the provided JSON
+    final mockData = {
+      "present": true,
+      "totalNumberOfResult": 7,
+      "autoCompleteList": {
+        "byPropertyName": {
+          "present": true,
+          "listOfResult": [
+            {
+              "valueToDisplay": "Regenta Inn, Indiranagar",
+              "propertyName": "Regenta Inn, Indiranagar",
+              "address": {"city": "Bangalore", "state": "Karnataka"},
+              "searchArray": {
+                "type": "hotelIdSearch",
+                "query": ["zgRpricB"],
+              },
+            },
+            // ... more results
+          ],
+          "numberOfResult": 1,
+        },
+        "byStreet": {"present": false, "listOfResult": [], "numberOfResult": 0},
+        "byCity": {
+          "present": true,
+          "listOfResult": [
+            {
+              "valueToDisplay": "Bengaluru",
+              "address": {
+                "city": "Bengaluru",
+                "state": "Karnataka",
+                "country": "India",
+              },
+              "searchArray": {
+                "type": "citySearch",
+                "query": ["Bengaluru", "Karnataka", "India"],
+              },
+            },
+          ],
+          "numberOfResult": 1,
+        },
+        "byState": {"present": false, "listOfResult": [], "numberOfResult": 0},
+        "byCountry": {
+          "present": true,
+          "listOfResult": [
+            {
+              "valueToDisplay": "India",
+              "address": {"country": "India"},
+              "searchArray": {
+                "type": "countrySearch",
+                "query": ["India"],
+              },
+            },
+          ],
+          "numberOfResult": 1,
+        },
+      },
+    };
+
+    // Filter mock results based on the query for a slightly better demo
+    final AutocompleteData data = AutocompleteData.fromJson(mockData);
+
+    final filteredResults = data.autoCompleteList.getGroupedResults().where((
+      item,
+    ) {
+      if (item.isHeader) return true;
+      return item.result!.valueToDisplay.toLowerCase().contains(
+        query.toLowerCase(),
+      );
+    }).toList();
+
+    return filteredResults;
+  }
+
+  // Method to build search payload for API calls
+  Map<String, dynamic> buildSearchPayload() {
+    return state.toSearchPayload();
+  }
+}

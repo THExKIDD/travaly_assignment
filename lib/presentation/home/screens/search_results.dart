@@ -1,48 +1,18 @@
-import 'package:assignment_travaly/presentation/home/data/models/hotel_model.dart';
+import 'package:assignment_travaly/presentation/home/bloc/hotel_search_bloc.dart';
+import 'package:assignment_travaly/presentation/home/bloc/hotel_search_event.dart';
+import 'package:assignment_travaly/presentation/home/bloc/hotel_search_state.dart';
 import 'package:assignment_travaly/presentation/home/widgets/hotel_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SearchResultsScreen extends StatelessWidget {
   final TextEditingController searchController;
-  final List<Hotel> searchResults;
-  final DateTime checkInDate;
-  final DateTime checkOutDate;
-  final int rooms;
-  final int adults;
-  final int children;
-  final bool isLoading;
-  final bool hasMoreData;
   final ScrollController scrollController;
-  final List<String> selectedAccommodationTypes;
-  final double minPrice;
-  final double maxPrice;
-  final VoidCallback onBack;
-  final Function({
-    List<String>? accommodationTypes,
-    double? minPrice,
-    double? maxPrice,
-  })
-  onFiltersUpdate;
-  final VoidCallback onApplyFilters;
 
   const SearchResultsScreen({
     super.key,
     required this.searchController,
-    required this.searchResults,
-    required this.checkInDate,
-    required this.checkOutDate,
-    required this.rooms,
-    required this.adults,
-    required this.children,
-    required this.isLoading,
-    required this.hasMoreData,
     required this.scrollController,
-    required this.selectedAccommodationTypes,
-    required this.minPrice,
-    required this.maxPrice,
-    required this.onBack,
-    required this.onFiltersUpdate,
-    required this.onApplyFilters,
   });
 
   // Accommodation type options
@@ -76,17 +46,19 @@ class SearchResultsScreen extends StatelessWidget {
     {'value': 'co_living', 'label': 'Co-living', 'icon': Icons.people},
   ];
 
-  void _showFiltersModal(BuildContext context) {
-    List<String> tempAccommodationTypes = List.from(selectedAccommodationTypes);
-    double tempMinPrice = minPrice;
-    double tempMaxPrice = maxPrice;
+  void _showFiltersModal(BuildContext context, HotelSearchState state) {
+    List<String> tempAccommodationTypes = List.from(
+      state.selectedAccommodationTypes,
+    );
+    double tempMinPrice = state.minPrice;
+    double tempMaxPrice = state.maxPrice;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+      builder: (modalContext) => StatefulBuilder(
+        builder: (builderContext, setModalState) => Container(
           height: MediaQuery.of(context).size.height * 0.85,
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -383,13 +355,19 @@ class SearchResultsScreen extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      onFiltersUpdate(
-                        accommodationTypes: tempAccommodationTypes,
-                        minPrice: tempMinPrice,
-                        maxPrice: tempMaxPrice,
+                      // Dispatch BLoC events
+                      context.read<HotelSearchBloc>().add(
+                        FiltersUpdated(
+                          accommodationTypes: tempAccommodationTypes,
+                          minPrice: tempMinPrice,
+                          maxPrice: tempMaxPrice,
+                        ),
                       );
                       Navigator.pop(context);
-                      onApplyFilters();
+                      // Trigger search with new filters
+                      context.read<HotelSearchBloc>().add(
+                        const SearchSubmitted(),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFF6F61),
@@ -437,387 +415,418 @@ class SearchResultsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nights = checkOutDate.difference(checkInDate).inDays;
-    final totalGuests = adults + children;
+    return BlocBuilder<HotelSearchBloc, HotelSearchState>(
+      builder: (context, state) {
+        final checkInDate = state.checkInDate ?? DateTime.now();
+        final checkOutDate =
+            state.checkOutDate ?? DateTime.now().add(const Duration(days: 1));
+        final nights = state.numberOfNights;
+        final totalGuests = state.totalGuests;
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        onBack();
-      },
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFF5F4), Color(0xFFFFF0EE), Color(0xFFFFE8E5)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header with back button
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFFF6F61).withOpacity(0.15),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: Color(0xFFFF6F61),
-                        ),
-                        onPressed: onBack,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Search Results',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF2C2C2C),
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          Text(
-                            'for "${searchController.text}"',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF6B6B6B),
-                              fontWeight: FontWeight.w500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFFF6F61).withOpacity(0.15),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        icon: Stack(
-                          children: [
-                            const Icon(
-                              Icons.tune_rounded,
-                              color: Color(0xFFFF6F61),
-                            ),
-                            if (selectedAccommodationTypes.first != 'all' ||
-                                minPrice != 0 ||
-                                maxPrice != 50000)
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFFF6F61),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        onPressed: () => _showFiltersModal(context),
-                      ),
-                    ),
-                  ],
-                ),
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) {
+              context.read<HotelSearchBloc>().add(const NavigateToHome());
+            }
+          },
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFFFF5F4),
+                  Color(0xFFFFF0EE),
+                  Color(0xFFFFE8E5),
+                ],
               ),
-
-              // Search Summary Card
-              if (searchResults.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFF6F61).withOpacity(0.12),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Header with back button
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFF6F61).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.hotel_rounded,
-                                color: Color(0xFFFF6F61),
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${searchResults.length} ${searchResults.length == 1 ? 'hotel' : 'hotels'} found',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF2C2C2C),
-                                    ),
-                                  ),
-                                  Text(
-                                    'Matching your preferences',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
                         Container(
-                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFF5F4),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.calendar_today_rounded,
-                                      size: 14,
-                                      color: Color(0xFF6B6B6B),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        '${checkInDate.day} ${_getMonthName(checkInDate.month)} - ${checkOutDate.day} ${_getMonthName(checkOutDate.month)}',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF2C2C2C),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFFFF6F61,
-                                  ).withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '$nights ${nights == 1 ? 'night' : 'nights'}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFFFF6F61),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.people_outline_rounded,
-                                    size: 14,
-                                    color: Color(0xFF6B6B6B),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '$totalGuests, $rooms ${rooms == 1 ? 'room' : 'rooms'}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF2C2C2C),
-                                    ),
-                                  ),
-                                ],
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFFFF6F61,
+                                ).withOpacity(0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back_rounded,
+                              color: Color(0xFFFF6F61),
+                            ),
+                            onPressed: () {
+                              context.read<HotelSearchBloc>().add(
+                                const NavigateToHome(),
+                              );
+                            },
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 20),
-
-              // Results list
-              Expanded(
-                child: searchResults.isEmpty && isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFFF6F61),
-                          strokeWidth: 3,
-                        ),
-                      )
-                    : searchResults.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40),
+                        const SizedBox(width: 12),
+                        Expanded(
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(28),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFFFF6F61,
-                                  ).withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.search_off_rounded,
-                                  size: 64,
-                                  color: Color(0xFFFF6F61),
-                                ),
-                              ),
-                              const SizedBox(height: 24),
                               const Text(
-                                'No Hotels Found',
+                                'Search Results',
                                 style: TextStyle(
-                                  fontSize: 22,
+                                  fontSize: 20,
                                   fontWeight: FontWeight.w700,
                                   color: Color(0xFF2C2C2C),
                                   letterSpacing: -0.5,
                                 ),
                               ),
-                              const SizedBox(height: 12),
                               Text(
-                                'Try adjusting your search criteria\nor filters to find more results',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
+                                'for "${state.searchQuery}"',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF6B6B6B),
                                   fontWeight: FontWeight.w500,
-                                  height: 1.5,
                                 ),
-                              ),
-                              const SizedBox(height: 28),
-                              ElevatedButton.icon(
-                                onPressed: onBack,
-                                icon: const Icon(
-                                  Icons.arrow_back_rounded,
-                                  size: 18,
-                                ),
-                                label: const Text('Back to Search'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFF6F61),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 0,
-                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
                         ),
-                      )
-                    : ListView.builder(
-                        controller: scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: searchResults.length + (hasMoreData ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          if (index == searchResults.length) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 24),
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFFFF6F61,
-                                        ).withOpacity(0.2),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
+                        Stack(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFFFF6F61,
+                                    ).withOpacity(0.15),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
                                   ),
-                                  child: const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Color(0xFFFF6F61),
-                                      strokeWidth: 3,
-                                    ),
+                                ],
+                              ),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.tune_rounded,
+                                  color: Color(0xFFFF6F61),
+                                ),
+                                onPressed: () =>
+                                    _showFiltersModal(context, state),
+                              ),
+                            ),
+                            if (state.hasActiveFilters)
+                              Positioned(
+                                right: 2,
+                                top: 2,
+                                child: Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFFF8F84),
+                                    shape: BoxShape.circle,
                                   ),
                                 ),
                               ),
-                            );
-                          }
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
 
-                          final hotel = searchResults[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: HotelCard(hotel: hotel),
-                          );
-                        },
+                  // Search Summary Card
+                  if (state.hasResults)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF6F61).withOpacity(0.12),
+                              blurRadius: 20,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFFF6F61,
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.hotel_rounded,
+                                    color: Color(0xFFFF6F61),
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${state.searchResults.length} ${state.searchResults.length == 1 ? 'hotel' : 'hotels'} found',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF2C2C2C),
+                                        ),
+                                      ),
+                                      Text(
+                                        'Matching your preferences',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF5F4),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.calendar_today_rounded,
+                                          size: 14,
+                                          color: Color(0xFF6B6B6B),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            '${checkInDate.day} ${_getMonthName(checkInDate.month)} - ${checkOutDate.day} ${_getMonthName(checkOutDate.month)}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF2C2C2C),
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFFFF6F61,
+                                      ).withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '$nights ${nights == 1 ? 'night' : 'nights'}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFFFF6F61),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.people_outline_rounded,
+                                        size: 14,
+                                        color: Color(0xFF6B6B6B),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '$totalGuests, ${state.rooms} ${state.rooms == 1 ? 'room' : 'rooms'}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF2C2C2C),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    ),
+
+                  const SizedBox(height: 20),
+
+                  // Results list
+                  Expanded(
+                    child: state.isEmpty && state.isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Color(0xFFFF6F61),
+                              strokeWidth: 3,
+                            ),
+                          )
+                        : state.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(40),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(28),
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFFFF6F61,
+                                      ).withOpacity(0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.search_off_rounded,
+                                      size: 64,
+                                      color: Color(0xFFFF6F61),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  const Text(
+                                    'No Hotels Found',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF2C2C2C),
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Try adjusting your search criteria\nor filters to find more results',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 28),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      context.read<HotelSearchBloc>().add(
+                                        const NavigateToHome(),
+                                      );
+                                    },
+                                    icon: const Icon(
+                                      Icons.arrow_back_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Back to Search'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFF6F61),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 14,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: scrollController,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount:
+                                state.searchResults.length +
+                                (state.hasMoreData ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == state.searchResults.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 24,
+                                  ),
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFFFF6F61,
+                                            ).withOpacity(0.2),
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          color: Color(0xFFFF6F61),
+                                          strokeWidth: 3,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              final hotel = state.searchResults[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: HotelCard(hotel: hotel),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -1,44 +1,15 @@
 import 'package:assignment_travaly/core/theme/app_theme_data.dart';
+import 'package:assignment_travaly/presentation/home/bloc/hotel_search_bloc.dart';
+import 'package:assignment_travaly/presentation/home/bloc/hotel_search_event.dart';
+import 'package:assignment_travaly/presentation/home/bloc/hotel_search_state.dart';
+import 'package:assignment_travaly/presentation/home/data/models/search_autocomplete_model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SearchFilterWidget extends StatefulWidget {
   final TextEditingController searchController;
-  final DateTime? checkInDate;
-  final DateTime? checkOutDate;
-  final int rooms;
-  final int adults;
-  final int children;
-  final List<String> selectedAccommodationTypes;
-  final double minPrice;
-  final double maxPrice;
-  final VoidCallback onSearch;
-  final Function(DateTime) onCheckInDateSelected;
-  final Function(DateTime) onCheckOutDateSelected;
-  final Function({int? rooms, int? adults, int? children}) onGuestRoomUpdate;
-  final Function({
-    List<String>? accommodationTypes,
-    double? minPrice,
-    double? maxPrice,
-  })
-  onFiltersUpdate;
 
-  const SearchFilterWidget({
-    super.key,
-    required this.searchController,
-    this.checkInDate,
-    this.checkOutDate,
-    required this.rooms,
-    required this.adults,
-    required this.children,
-    required this.selectedAccommodationTypes,
-    required this.minPrice,
-    required this.maxPrice,
-    required this.onSearch,
-    required this.onCheckInDateSelected,
-    required this.onCheckOutDateSelected,
-    required this.onGuestRoomUpdate,
-    required this.onFiltersUpdate,
-  });
+  const SearchFilterWidget({super.key, required this.searchController});
 
   // Accommodation type options - matched with API
   static final List<Map<String, dynamic>> _accommodationTypes = [
@@ -77,15 +48,253 @@ class SearchFilterWidget extends StatefulWidget {
 
 class _SearchFilterWidgetState extends State<SearchFilterWidget> {
   bool _hasText = false;
+  final FocusNode _searchFocusNode = FocusNode();
+  final LayerLink _layerLink = LayerLink();
+  final GlobalKey _searchFieldKey = GlobalKey();
+  OverlayEntry? _overlayEntry;
+  bool _isAutocompleteVisible = false;
 
-  Future<void> _selectDateRange(BuildContext context) async {
+  @override
+  void initState() {
+    super.initState();
+    widget.searchController.addListener(_onTextChanged);
+    _searchFocusNode.addListener(_onFocusChanged);
+    _hasText = widget.searchController.text.isNotEmpty;
+  }
+
+  @override
+  void dispose() {
+    _removeOverlay();
+    widget.searchController.removeListener(_onTextChanged);
+    _searchFocusNode.removeListener(_onFocusChanged);
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _onTextChanged() {
+    final hasTextNow = widget.searchController.text.isNotEmpty;
+    if (hasTextNow != _hasText) {
+      setState(() {
+        _hasText = hasTextNow;
+      });
+    }
+  }
+
+  void _onFocusChanged() {
+    if (!_searchFocusNode.hasFocus) {
+      // Delay removal to allow tap on suggestions
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (!_searchFocusNode.hasFocus) {
+          _removeOverlay();
+        }
+      });
+    }
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    setState(() {
+      _isAutocompleteVisible = false;
+    });
+  }
+
+  void _showAutocompleteOverlay(List<AutocompleteItem> suggestions) {
+    _removeOverlay();
+
+    if (suggestions.isEmpty || !_searchFocusNode.hasFocus) return;
+
+    _overlayEntry = _createOverlayEntry(suggestions);
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() {
+      _isAutocompleteVisible = true;
+    });
+  }
+
+  OverlayEntry _createOverlayEntry(List<AutocompleteItem> suggestions) {
+    // Get the search field's position and size
+    RenderBox? renderBox =
+        _searchFieldKey.currentContext?.findRenderObject() as RenderBox?;
+
+    if (renderBox == null) {
+      // Fallback if renderBox is not available
+      return OverlayEntry(builder: (context) => const SizedBox.shrink());
+    }
+
+    var size = renderBox.size;
+    var offset = renderBox.localToGlobal(Offset.zero);
+
+    return OverlayEntry(
+      builder: (context) => Positioned(
+        left: offset.dx + 16, // Account for container padding
+        top: offset.dy + size.height + 4,
+        width: size.width - 32, // Account for both sides padding
+        child: Material(
+          elevation: 8,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 400),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shrinkWrap: true,
+                itemCount: suggestions.length,
+                separatorBuilder: (context, index) {
+                  // Don't show separator after headers
+                  if (suggestions[index].isHeader) {
+                    return const SizedBox.shrink();
+                  }
+                  return const Divider(height: 1, indent: 56, endIndent: 16);
+                },
+                itemBuilder: (context, index) {
+                  final item = suggestions[index];
+
+                  if (item.isHeader) {
+                    return _buildHeaderItem(item.headerText!);
+                  }
+
+                  return _buildSuggestionItem(item.result!);
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF6B6B6B),
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionItem(AutocompleteResult result) {
+    return InkWell(
+      onTap: () {
+        widget.searchController.text = result.valueToDisplay;
+        _searchFocusNode.unfocus();
+
+        context.read<HotelSearchBloc>().add(
+          AutocompleteResultSelected(
+            query: result.valueToDisplay,
+            searchType: result.searchArray.type,
+            searchQueries: result.searchArray.query,
+          ),
+        );
+
+        _removeOverlay();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6F61).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                _getIconForSearchType(result.searchArray.type),
+                color: const Color(0xFFFF6F61),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    result.valueToDisplay,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2C2C2C),
+                    ),
+                  ),
+                  if (result.address != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatAddress(result.address!),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: Colors.grey[400],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getIconForSearchType(String type) {
+    switch (type) {
+      case 'hotelIdSearch':
+        return Icons.hotel_rounded;
+      case 'citySearch':
+        return Icons.location_city_rounded;
+      case 'stateSearch':
+        return Icons.map_rounded;
+      case 'countrySearch':
+        return Icons.public_rounded;
+      case 'streetSearch':
+        return Icons.signpost_rounded;
+      default:
+        return Icons.search_rounded;
+    }
+  }
+
+  String _formatAddress(Address address) {
+    final parts = <String>[];
+    if (address.city != null) parts.add(address.city!);
+    if (address.state != null) parts.add(address.state!);
+    if (address.country != null) parts.add(address.country!);
+    return parts.join(', ');
+  }
+
+  Future<void> _selectDateRange(
+    BuildContext context,
+    HotelSearchState state,
+  ) async {
     final DateTimeRange? picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDateRange:
-          widget.checkInDate != null && widget.checkOutDate != null
-          ? DateTimeRange(start: widget.checkInDate!, end: widget.checkOutDate!)
+      initialDateRange: state.checkInDate != null && state.checkOutDate != null
+          ? DateTimeRange(start: state.checkInDate!, end: state.checkOutDate!)
           : null,
       builder: (context, child) {
         return Theme(
@@ -111,23 +320,24 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
       saveText: 'Select',
     );
 
-    if (picked != null) {
-      widget.onCheckInDateSelected(picked.start);
-      widget.onCheckOutDateSelected(picked.end);
+    if (picked != null && mounted) {
+      context.read<HotelSearchBloc>().add(
+        DateRangeSelected(checkIn: picked.start, checkOut: picked.end),
+      );
     }
   }
 
-  void _showGuestRoomSelector(BuildContext context) {
-    int tempRooms = widget.rooms;
-    int tempAdults = widget.adults;
-    int tempChildren = widget.children;
+  void _showGuestRoomSelector(BuildContext context, HotelSearchState state) {
+    int tempRooms = state.rooms;
+    int tempAdults = state.adults;
+    int tempChildren = state.children;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+      builder: (modalContext) => StatefulBuilder(
+        builder: (builderContext, setModalState) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -193,10 +403,12 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    widget.onGuestRoomUpdate(
-                      rooms: tempRooms,
-                      adults: tempAdults,
-                      children: tempChildren,
+                    context.read<HotelSearchBloc>().add(
+                      GuestRoomDataUpdated(
+                        rooms: tempRooms,
+                        adults: tempAdults,
+                        children: tempChildren,
+                      ),
                     );
                     Navigator.pop(context);
                   },
@@ -299,19 +511,19 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
     );
   }
 
-  void _showFiltersModal(BuildContext context) {
+  void _showFiltersModal(BuildContext context, HotelSearchState state) {
     List<String> tempAccommodationTypes = List.from(
-      widget.selectedAccommodationTypes,
+      state.selectedAccommodationTypes,
     );
-    double tempMinPrice = widget.minPrice;
-    double tempMaxPrice = widget.maxPrice;
+    double tempMinPrice = state.minPrice;
+    double tempMaxPrice = state.maxPrice;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+      builder: (modalContext) => StatefulBuilder(
+        builder: (builderContext, setModalState) => Container(
           height: MediaQuery.of(context).size.height * 0.85,
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -610,13 +822,20 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      widget.onFiltersUpdate(
-                        accommodationTypes: tempAccommodationTypes,
-                        minPrice: tempMinPrice,
-                        maxPrice: tempMaxPrice,
+                      context.read<HotelSearchBloc>().add(
+                        FiltersUpdated(
+                          accommodationTypes: tempAccommodationTypes,
+                          minPrice: tempMinPrice,
+                          maxPrice: tempMaxPrice,
+                        ),
                       );
                       Navigator.pop(context);
-                      widget.onSearch();
+                      // Trigger search if already in search mode
+                      if (context.read<HotelSearchBloc>().state.isSearchMode) {
+                        context.read<HotelSearchBloc>().add(
+                          const SearchSubmitted(),
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFF6F61),
@@ -663,402 +882,436 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    // Add listener to controller
-    widget.searchController.addListener(_onTextChanged);
-    // Initialize state
-    _hasText = widget.searchController.text.isNotEmpty;
-  }
-
-  @override
-  void dispose() {
-    // Remove listener to prevent memory leaks
-    widget.searchController.removeListener(_onTextChanged);
-    super.dispose();
-  }
-
-  void _onTextChanged() {
-    // Only update state if the value actually changed
-    final hasTextNow = widget.searchController.text.isNotEmpty;
-    if (hasTextNow != _hasText) {
-      setState(() {
-        _hasText = hasTextNow;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final nights = widget.checkInDate != null && widget.checkOutDate != null
-        ? widget.checkOutDate!.difference(widget.checkInDate!).inDays
-        : 0;
-    final totalGuests = widget.adults + widget.children;
+    return BlocConsumer<HotelSearchBloc, HotelSearchState>(
+      listener: (context, state) {
+        // Update autocomplete overlay based on state
+        if (state.autocompleteStatus == AutocompleteStatus.success &&
+            state.autocompleteResults.isNotEmpty &&
+            _searchFocusNode.hasFocus) {
+          _showAutocompleteOverlay(state.autocompleteResults);
+        } else if (state.autocompleteResults.isEmpty ||
+            state.autocompleteStatus == AutocompleteStatus.initial) {
+          _removeOverlay();
+        }
+      },
+      builder: (context, state) {
+        final nights = state.numberOfNights;
+        final totalGuests = state.totalGuests;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF6F61).withOpacity(0.15),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Search Input
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              onTapOutside: (_) {
-                FocusScope.of(context).unfocus();
-              },
-              controller: widget.searchController,
-              decoration: InputDecoration(
-                hintText: 'Where do you want to go?',
-                hintStyle: TextStyle(
-                  color: const Color(0xFF6B6B6B).withOpacity(0.6),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: Color(0xFFFF6F61),
-                  size: 24,
-                ),
-                suffixIcon: _hasText
-                    ? IconButton(
-                        onPressed: () {
-                          widget.searchController.clear();
-                        },
-                        icon: Icon(Icons.close, color: AppTheme.primaryCoral),
-                      )
-                    : null,
-                filled: true,
-                fillColor: const Color(0xFFFFF5F4),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF6F61).withOpacity(0.15),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
-              onSubmitted: (_) => widget.onSearch(),
-            ),
+            ],
           ),
-
-          const Divider(height: 1, color: Color(0xFFE0E0E0)),
-
-          // Date Range Selector
-          InkWell(
-            onTap: () => _selectDateRange(context),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFF6F61).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.calendar_month_outlined,
-                                color: Color(0xFFFF6F61),
-                                size: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Check-in',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF6B6B6B),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.checkInDate != null
-                              ? _formatDate(widget.checkInDate!)
-                              : 'Select date',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: widget.checkInDate != null
-                                ? const Color(0xFF2C2C2C)
-                                : const Color(0xFF6B6B6B).withOpacity(0.6),
-                          ),
-                        ),
-                      ],
+          child: Column(
+            children: [
+              // Search Input - Wrapped with key for positioning
+              Container(
+                key: _searchFieldKey,
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  focusNode: _searchFocusNode,
+                  onChanged: (value) {
+                    context.read<HotelSearchBloc>().add(
+                      SearchQueryChanged(value),
+                    );
+                    context.read<HotelSearchBloc>().add(
+                      FetchAutocomplete(value),
+                    );
+                  },
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                  controller: widget.searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Where do you want to go?',
+                    hintStyle: TextStyle(
+                      color: const Color(0xFF6B6B6B).withOpacity(0.6),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
-                  ),
-                  if (widget.checkInDate != null && widget.checkOutDate != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF6F61).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.nights_stay_outlined,
-                            size: 14,
+                    prefixIcon:
+                        state.autocompleteStatus == AutocompleteStatus.loading
+                        ? Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  const Color(0xFFFF6F61),
+                                ),
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.search_rounded,
                             color: Color(0xFFFF6F61),
+                            size: 24,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$nights night${nights > 1 ? 's' : ''}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFFF6F61),
+                    suffixIcon: _hasText
+                        ? IconButton(
+                            onPressed: () {
+                              widget.searchController.clear();
+                              context.read<HotelSearchBloc>().add(
+                                const SearchQueryCleared(),
+                              );
+                              _removeOverlay();
+                            },
+                            icon: Icon(
+                              Icons.close,
+                              color: AppTheme.primaryCoral,
                             ),
-                          ),
-                        ],
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: const Color(0xFFFFF5F4),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFFF6F61),
+                        width: 2,
                       ),
                     ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                  ),
+                  onSubmitted: (_) {
+                    _removeOverlay();
+                    context.read<HotelSearchBloc>().add(
+                      const SearchSubmitted(),
+                    );
+                  },
+                ),
+              ),
+
+              const Divider(height: 1, color: Color(0xFFE0E0E0)),
+
+              // Date Range Selector
+              InkWell(
+                onTap: () => _selectDateRange(context, state),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFF6F61).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.event_available_outlined,
-                                color: Color(0xFFFF6F61),
-                                size: 16,
-                              ),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFFF6F61,
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.calendar_month_outlined,
+                                    color: Color(0xFFFF6F61),
+                                    size: 16,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Check-in',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF6B6B6B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Check-out',
+                            const SizedBox(height: 8),
+                            Text(
+                              state.checkInDate != null
+                                  ? _formatDate(state.checkInDate!)
+                                  : 'Select date',
                               style: TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF6B6B6B),
-                                fontWeight: FontWeight.w500,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: state.checkInDate != null
+                                    ? const Color(0xFF2C2C2C)
+                                    : const Color(0xFF6B6B6B).withOpacity(0.6),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.checkOutDate != null
-                              ? _formatDate(widget.checkOutDate!)
-                              : 'Select date',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: widget.checkOutDate != null
-                                ? const Color(0xFF2C2C2C)
-                                : const Color(0xFF6B6B6B).withOpacity(0.6),
+                      ),
+                      if (state.checkInDate != null &&
+                          state.checkOutDate != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const Divider(height: 1, color: Color(0xFFE0E0E0)),
-
-          // Guests & Filters Row
-          IntrinsicHeight(
-            child: Row(
-              children: [
-                // Guests & Rooms
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _showGuestRoomSelector(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF6F61).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFFFF6F61,
-                                  ).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.people_outline_rounded,
-                                  color: Color(0xFFFF6F61),
-                                  size: 16,
-                                ),
+                              const Icon(
+                                Icons.nights_stay_outlined,
+                                size: 14,
+                                color: Color(0xFFFF6F61),
                               ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Guests & Rooms',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF6B6B6B),
-                                  fontWeight: FontWeight.w500,
+                              const SizedBox(width: 4),
+                              Text(
+                                '$nights night${nights > 1 ? 's' : ''}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFFF6F61),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '$totalGuests Guest${totalGuests > 1 ? 's' : ''} • ${widget.rooms} Room${widget.rooms > 1 ? 's' : ''}',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF2C2C2C),
+                        ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFFF6F61,
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.event_available_outlined,
+                                    color: Color(0xFFFF6F61),
+                                    size: 16,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Check-out',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF6B6B6B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            Text(
+                              state.checkOutDate != null
+                                  ? _formatDate(state.checkOutDate!)
+                                  : 'Select date',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: state.checkOutDate != null
+                                    ? const Color(0xFF2C2C2C)
+                                    : const Color(0xFF6B6B6B).withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-                Container(width: 1, color: const Color(0xFFE0E0E0)),
-                // Filters
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _showFiltersModal(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+              ),
+
+              const Divider(height: 1, color: Color(0xFFE0E0E0)),
+
+              // Guests & Filters Row
+              IntrinsicHeight(
+                child: Row(
+                  children: [
+                    // Guests & Rooms
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _showGuestRoomSelector(context, state),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFFFF6F61,
-                                  ).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Stack(
-                                  children: [
-                                    const Icon(
-                                      Icons.tune_rounded,
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFFFF6F61,
+                                      ).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.people_outline_rounded,
                                       color: Color(0xFFFF6F61),
                                       size: 16,
                                     ),
-                                    if (widget
-                                                .selectedAccommodationTypes
-                                                .first !=
-                                            'all' ||
-                                        widget.minPrice != 0 ||
-                                        widget.maxPrice != 50000)
-                                      Positioned(
-                                        right: -2,
-                                        top: -2,
-                                        child: Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFFFF6F61),
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Guests & Rooms',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF6B6B6B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Filters',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF6B6B6B),
-                                  fontWeight: FontWeight.w500,
+                              const SizedBox(height: 8),
+                              Text(
+                                '$totalGuests Guest${totalGuests > 1 ? 's' : ''} • ${state.rooms} Room${state.rooms > 1 ? 's' : ''}',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2C2C2C),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.selectedAccommodationTypes.first == 'all'
-                                ? 'All Properties'
-                                : '${widget.selectedAccommodationTypes.length} Type${widget.selectedAccommodationTypes.length > 1 ? 's' : ''}',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF2C2C2C),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const Divider(height: 1, color: Color(0xFFE0E0E0)),
-
-          // Search Button
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: widget.onSearch,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF6F61),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.search_rounded, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Search Hotels',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+                    Container(width: 1, color: const Color(0xFFE0E0E0)),
+                    // Filters
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _showFiltersModal(context, state),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFFFF6F61,
+                                      ).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        const Icon(
+                                          Icons.tune_rounded,
+                                          color: Color(0xFFFF6F61),
+                                          size: 16,
+                                        ),
+                                        if (state.hasActiveFilters)
+                                          Positioned(
+                                            right: -2,
+                                            top: -2,
+                                            child: Container(
+                                              width: 8,
+                                              height: 8,
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFFFF6F61),
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Filters',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF6B6B6B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                state.selectedAccommodationTypes.first == 'all'
+                                    ? 'All Properties'
+                                    : '${state.selectedAccommodationTypes.length} Type${state.selectedAccommodationTypes.length > 1 ? 's' : ''}',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2C2C2C),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
+
+              const Divider(height: 1, color: Color(0xFFE0E0E0)),
+
+              // Search Button
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _removeOverlay();
+                      context.read<HotelSearchBloc>().add(
+                        const SearchSubmitted(),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6F61),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_rounded, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Search Hotels',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
