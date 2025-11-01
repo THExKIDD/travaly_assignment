@@ -93,6 +93,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
   final GlobalKey _searchFieldKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   bool _isAutocompleteVisible = false;
+  bool _ignoreTextChange = false; // 🆕 Flag to ignore text changes
 
   @override
   void initState() {
@@ -114,6 +115,9 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
   }
 
   void _onTextChanged() {
+    // 🆕 Skip if we're programmatically setting the text
+    if (_ignoreTextChange) return;
+
     final hasTextNow = widget.searchController.text.isNotEmpty;
     if (hasTextNow != _hasText) {
       setState(() {
@@ -136,11 +140,6 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
   void _removeOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
-    /*    if (mounted) {
-      setState(() {
-        _isAutocompleteVisible = false;
-      });
-    }*/
   }
 
   void _showAutocompleteOverlay(List<AutocompleteItem> suggestions) {
@@ -169,14 +168,13 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
     var offset = renderBox.localToGlobal(Offset.zero);
 
     return OverlayEntry(
-      builder: (context) => Stack(
+      builder: (ctx) => Stack(
         children: [
           // Invisible barrier to detect taps outside
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
               onTap: () {
-                // Tap outside to close
                 _searchFocusNode.unfocus();
                 _removeOverlay();
               },
@@ -191,14 +189,31 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
             child: AutocompleteOverlay(
               suggestions: suggestions,
               onSuggestionTap: (result) {
+                // 🆕 Set flag to ignore the text change event
+                _ignoreTextChange = true;
+
                 widget.searchController.text = result.valueToDisplay;
+
+                // 🆕 Reset flag after a brief delay
+                Future.delayed(const Duration(milliseconds: 50), () {
+                  _ignoreTextChange = false;
+                });
+
                 _searchFocusNode.unfocus();
+
+                List<String> searchQueries = result.searchArray.query;
+                String searchType = result.searchArray.type;
+
+                // Debug logs
+                print('🔍 Display: ${result.valueToDisplay}');
+                print('🔍 Type: $searchType');
+                print('🔍 Queries: $searchQueries');
 
                 context.read<HotelSearchBloc>().add(
                   AutocompleteResultSelected(
                     query: result.valueToDisplay,
-                    searchType: result.searchArray.type,
-                    searchQueries: result.searchArray.query,
+                    searchType: searchType,
+                    searchQueries: searchQueries,
                   ),
                 );
 
@@ -310,14 +325,16 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
                 child: TextField(
                   focusNode: _searchFocusNode,
                   onChanged: (value) {
-                    context.read<HotelSearchBloc>().add(
-                      SearchQueryChanged(value),
-                    );
-                    context.read<HotelSearchBloc>().add(
-                      FetchAutocomplete(value),
-                    );
+                    // 🆕 Only process if not ignoring
+                    if (!_ignoreTextChange) {
+                      context.read<HotelSearchBloc>().add(
+                        SearchQueryChanged(value),
+                      );
+                      context.read<HotelSearchBloc>().add(
+                        FetchAutocomplete(value),
+                      );
+                    }
                   },
-                  // onTapOutside: (_) => FocusScope.of(context).unfocus(),
                   controller: widget.searchController,
                   decoration: InputDecoration(
                     hintText: 'Where do you want to go?',

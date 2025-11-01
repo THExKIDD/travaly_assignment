@@ -97,10 +97,7 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
               },
               children: [
                 HomeScreen(searchController: _searchController),
-                SearchResultsScreen(
-                  searchController: _searchController,
-                  scrollController: _scrollController,
-                ),
+                SearchResultsScreen(searchController: _searchController),
               ],
             ),
           );

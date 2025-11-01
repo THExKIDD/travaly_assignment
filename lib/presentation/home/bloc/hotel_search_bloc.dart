@@ -1,5 +1,6 @@
+import 'dart:developer';
+
 import 'package:assignment_travaly/presentation/home/data/models/search_autocomplete_model.dart';
-import 'package:assignment_travaly/presentation/home/data/models/search_results_model.dart';
 import 'package:assignment_travaly/presentation/home/data/repo/hotel_search_repo.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -7,6 +8,8 @@ import 'hotel_search_event.dart';
 import 'hotel_search_state.dart';
 
 class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
+  final HotelSearchRepo _hotelSearchRepo = HotelSearchRepo();
+
   HotelSearchBloc() : super(const HotelSearchState()) {
     // Search Query Events
     on<SearchQueryChanged>(_onSearchQueryChanged);
@@ -54,6 +57,7 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
     SearchQueryChanged event,
     Emitter<HotelSearchState> emit,
   ) {
+    // When user types, clear previous autocomplete selection
     emit(state.copyWith(searchQuery: event.query));
   }
 
@@ -160,7 +164,7 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
     Emitter<HotelSearchState> emit,
   ) async {
     // Validation
-    if (state.searchQuery.trim().isEmpty) {
+    if (state.searchQuery.trim().isEmpty && state.searchQueries.isEmpty) {
       emit(
         state.copyWith(
           searchStatus: SearchStatus.failure,
@@ -180,15 +184,24 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
       return;
     }
 
+    // If searchQueries is empty (user typed without selecting autocomplete),
+    // use searchByKeywords as the search type
+    String searchType = state.searchType;
+    if (state.searchQueries.isEmpty && state.searchQuery.isNotEmpty) {
+      searchType = 'searchByKeywords';
+      log('Using searchByKeywords for typed query: ${state.searchQuery}');
+    }
+
     // Reset search state and initiate search
     emit(
       state.copyWith(
         isSearchMode: true,
         searchStatus: SearchStatus.loading,
         searchResults: [],
-        currentPage: 1,
+        currentPage: 0,
         hasMoreData: true,
         errorMessage: null,
+        searchType: searchType, // Update search type if needed
       ),
     );
 
@@ -205,7 +218,7 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
         isSearchMode: true,
         searchStatus: SearchStatus.loading,
         searchResults: [],
-        currentPage: 1,
+        currentPage: 0,
         hasMoreData: true,
         errorMessage: null,
       ),
@@ -281,18 +294,24 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
     bool isLoadMore = false,
   }) async {
     try {
-      // In a real implementation, you would call your API here
-      // For now, using mock data
+      log('Performing search with state: ${state.toString()}');
 
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
+      // Build search payload
+      final searchPayload = state.toSearchPayload();
 
-      // Generate mock results
-      final newResults = _generateMockResults(
-        state.currentPage,
-        state.searchQuery,
+      log('Search payload: $searchPayload');
+
+      // Call API
+      final response = await _hotelSearchRepo.searchHotels(
+        searchPayload: searchPayload,
       );
 
+      // Extract hotel list from response
+      final newResults = response.data?.arrayOfHotelList ?? [];
+
+      log('Received ${newResults.length} results');
+
+      // Handle empty results
       if (newResults.isEmpty) {
         if (isLoadMore) {
           emit(
@@ -313,19 +332,31 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
         return;
       }
 
+      // Update results
       final updatedResults = isLoadMore
           ? [...state.searchResults, ...newResults]
           : newResults;
+
+      // Check if there are more results
+      final hasMore = newResults.length >= state.itemsPerPage;
+
+      // Update excluded hotels and search types for next pagination
+      final excludedHotels = response.data?.arrayOfExcludedHotels ?? [];
+      final excludedSearchTypes =
+          response.data?.arrayOfExcludedSearchType ?? [];
 
       emit(
         state.copyWith(
           searchStatus: SearchStatus.success,
           searchResults: updatedResults,
-          hasMoreData: newResults.length == state.itemsPerPage,
+          hasMoreData: hasMore,
           errorMessage: null,
+          excludedHotels: excludedHotels,
+          excludedSearchTypes: excludedSearchTypes,
         ),
       );
     } catch (e) {
+      log('Search error: $e');
       emit(
         state.copyWith(
           searchStatus: SearchStatus.failure,
@@ -333,135 +364,6 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
         ),
       );
     }
-  }
-
-  List<Hotel> _generateMockResults(int page, String query) {
-    // Stop after 3 pages
-    if (page > 3) return [];
-
-    final cities = [
-      'New York',
-      'Miami',
-      'Chicago',
-      'Los Angeles',
-      'Boston',
-      'Seattle',
-      'Austin',
-      'Denver',
-    ];
-    final states = [
-      'New York',
-      'Florida',
-      'Illinois',
-      'California',
-      'Massachusetts',
-      'Washington',
-      'Texas',
-      'Colorado',
-    ];
-    final propertyTypes = [
-      'Hotel',
-      'Resort',
-      'Villa',
-      'Apartment',
-      'Guesthouse',
-    ];
-
-    return List.generate(state.itemsPerPage, (index) {
-      final globalIndex = (page - 1) * state.itemsPerPage + index;
-      final cityIndex = globalIndex % cities.length;
-      final basePrice = 150.0 + (globalIndex * 20);
-      final rating = 4.0 + (globalIndex % 10) / 10;
-
-      return Hotel(
-        propertyCode: 'PROP${globalIndex + 1000}',
-        propertyName:
-            '${propertyTypes[globalIndex % propertyTypes.length]} $query ${globalIndex + 1}',
-        propertyImage: PropertyImage(
-          fullUrl: 'https://picsum.photos/400/300?random=${globalIndex + 10}',
-          location: 'images/hotels/',
-          imageName: 'hotel_${globalIndex + 1}.jpg',
-        ),
-        propertyType: propertyTypes[globalIndex % propertyTypes.length],
-        propertyStar: (rating.toInt().clamp(1, 5)),
-        propertyPoliciesAndAmmenities: PropertyPoliciesAndAmenities(
-          present: true,
-          data: PolicyData(
-            freeWifi: globalIndex % 2 == 0,
-            freeCancellation: globalIndex % 3 == 0,
-            payAtHotel: globalIndex % 4 == 0,
-            petsAllowed: globalIndex % 5 == 0,
-            coupleFriendly: true,
-            bachularsAllowed: globalIndex % 3 != 0,
-            suitableForChildren: globalIndex % 2 == 0,
-          ),
-        ),
-        propertyAddress: PropertyAddress(
-          street: '${100 + globalIndex} Main Street',
-          city: cities[cityIndex],
-          state: states[cityIndex],
-          country: 'USA',
-          zipcode: '${10000 + globalIndex}',
-          mapAddress: '${cities[cityIndex]}, ${states[cityIndex]}, USA',
-          latitude: 40.7128 + (globalIndex * 0.1),
-          longitude: -74.0060 + (globalIndex * 0.1),
-        ),
-        propertyUrl: 'https://example.com/hotel/${globalIndex + 1}',
-        roomName: 'Deluxe Room',
-        numberOfAdults: state.adults,
-        markedPrice: Price(
-          amount: basePrice * 1.2,
-          displayAmount: '₹${(basePrice * 1.2).toStringAsFixed(0)}',
-          currencyAmount: (basePrice * 1.2).toStringAsFixed(2),
-          currencySymbol: '₹',
-        ),
-        propertyMinPrice: Price(
-          amount: basePrice,
-          displayAmount: '₹${basePrice.toStringAsFixed(0)}',
-          currencyAmount: basePrice.toStringAsFixed(2),
-          currencySymbol: '₹',
-        ),
-        propertyMaxPrice: Price(
-          amount: basePrice * 1.5,
-          displayAmount: '₹${(basePrice * 1.5).toStringAsFixed(0)}',
-          currencyAmount: (basePrice * 1.5).toStringAsFixed(2),
-          currencySymbol: '₹',
-        ),
-        availableDeals: [
-          AvailableDeal(
-            headerName: 'Early Bird Discount',
-            websiteUrl: 'https://example.com/deals',
-            dealType: 'discount',
-            price: Price(
-              amount: basePrice * 0.9,
-              displayAmount: '₹${(basePrice * 0.9).toStringAsFixed(0)}',
-              currencyAmount: (basePrice * 0.9).toStringAsFixed(2),
-              currencySymbol: '₹',
-            ),
-          ),
-        ],
-        subscriptionStatus: SubscriptionStatus(status: globalIndex % 4 == 0),
-        propertyView: 1000 + (globalIndex * 50),
-        isFavorite: false,
-        simplPriceList: SimplPriceList(
-          simplPrice: Price(
-            amount: basePrice * 0.95,
-            displayAmount: '₹${(basePrice * 0.95).toStringAsFixed(0)}',
-            currencyAmount: (basePrice * 0.95).toStringAsFixed(2),
-            currencySymbol: '₹',
-          ),
-          originalPrice: basePrice,
-        ),
-        googleReview: GoogleReview(
-          reviewPresent: true,
-          data: ReviewData(
-            overallRating: rating,
-            totalUserRating: 100 + (globalIndex * 10),
-            withoutDecimal: rating.toInt(),
-          ),
-        ),
-      );
-    });
   }
 
   Future<void> _onFetchAutocomplete(
@@ -483,7 +385,7 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
     emit(state.copyWith(autocompleteStatus: AutocompleteStatus.loading));
 
     try {
-      // API call placeholder
+      // API call
       final results = await _fetchAutocompleteResults(query);
 
       emit(
@@ -493,6 +395,7 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
         ),
       );
     } catch (e) {
+      log('Autocomplete error: $e');
       emit(state.copyWith(autocompleteStatus: AutocompleteStatus.failure));
     }
   }
@@ -501,22 +404,54 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
     AutocompleteResultSelected event,
     Emitter<HotelSearchState> emit,
   ) {
+    // Map autocomplete search type to API search type
+    String apiSearchType = _mapSearchTypeToAPI(event.searchType);
+
+    log(
+      'Autocomplete selected - Query: ${event.query}, Type: $apiSearchType, Queries: ${event.searchQueries}',
+    );
+
     emit(
       state.copyWith(
         searchQuery: event.query,
-        searchType: event.searchType,
+        searchType: apiSearchType,
+        searchQueries: event
+            .searchQueries, // Use the actual query values from autocomplete
         autocompleteResults: [], // Clear suggestions
         autocompleteStatus: AutocompleteStatus.initial,
       ),
     );
   }
 
+  // Map autocomplete search types to API expected format
+  String _mapSearchTypeToAPI(String autocompleteType) {
+    switch (autocompleteType.toLowerCase()) {
+      case 'bycity':
+      case 'citysearch':
+        return 'citySearch';
+      case 'bystate':
+      case 'statesearch':
+        return 'stateSearch';
+      case 'bycountry':
+      case 'countrysearch':
+        return 'countrySearch';
+      case 'bystreet':
+      case 'streetsearch':
+        return 'streetSearch';
+      case 'hotelidsearch':
+      case 'byhotelid':
+        return 'hotelIdSearch';
+      case 'bykeywords':
+      case 'keywords':
+        return 'searchByKeywords';
+      default:
+        return 'citySearch'; // Default to city search
+    }
+  }
+
   Future<List<AutocompleteItem>> _fetchAutocompleteResults(String query) async {
     try {
-      final HotelSearchRepo hotelSearchRepo = HotelSearchRepo();
-
-      final AutocompleteData data = await hotelSearchRepo
-          .fetchSearchSuggestions(query: query);
+      final data = await _hotelSearchRepo.fetchSearchSuggestions(query: query);
 
       final filteredResults = data.autoCompleteList.getGroupedResults().where((
         item,
@@ -529,6 +464,7 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
 
       return filteredResults;
     } catch (e) {
+      log('Error fetching autocomplete: $e');
       return [];
     }
   }

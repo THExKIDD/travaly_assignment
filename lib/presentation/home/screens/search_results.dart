@@ -5,15 +5,44 @@ import 'package:assignment_travaly/presentation/home/data/models/search_results_
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class SearchResultsScreen extends StatelessWidget {
+class SearchResultsScreen extends StatefulWidget {
   final TextEditingController searchController;
-  final ScrollController scrollController;
 
-  const SearchResultsScreen({
-    super.key,
-    required this.searchController,
-    required this.scrollController,
-  });
+  const SearchResultsScreen({super.key, required this.searchController});
+
+  @override
+  State<SearchResultsScreen> createState() => _SearchResultsScreenState();
+}
+
+class _SearchResultsScreenState extends State<SearchResultsScreen> {
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_isBottom) {
+      context.read<HotelSearchBloc>().add(const LoadMoreResults());
+    }
+  }
+
+  bool get _isBottom {
+    if (!_scrollController.hasClients) return false;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.offset;
+    return currentScroll >= (maxScroll * 0.9);
+  }
 
   // Accommodation type options
   static final List<Map<String, dynamic>> _accommodationTypes = [
@@ -732,7 +761,9 @@ class SearchResultsScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
-                                    'Try adjusting your search criteria\nor filters to find more results',
+                                    state.hasError && state.errorMessage != null
+                                        ? state.errorMessage!
+                                        : 'Try adjusting your search criteria\nor filters to find more results',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 14,
@@ -744,15 +775,27 @@ class SearchResultsScreen extends StatelessWidget {
                                   const SizedBox(height: 28),
                                   ElevatedButton.icon(
                                     onPressed: () {
-                                      context.read<HotelSearchBloc>().add(
-                                        const NavigateToHome(),
-                                      );
+                                      if (state.hasError) {
+                                        context.read<HotelSearchBloc>().add(
+                                          const RetrySearch(),
+                                        );
+                                      } else {
+                                        context.read<HotelSearchBloc>().add(
+                                          const NavigateToHome(),
+                                        );
+                                      }
                                     },
-                                    icon: const Icon(
-                                      Icons.arrow_back_rounded,
+                                    icon: Icon(
+                                      state.hasError
+                                          ? Icons.refresh
+                                          : Icons.arrow_back_rounded,
                                       size: 18,
                                     ),
-                                    label: const Text('Back to Search'),
+                                    label: Text(
+                                      state.hasError
+                                          ? 'Retry Search'
+                                          : 'Back to Search',
+                                    ),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFFFF6F61),
                                       foregroundColor: Colors.white,
@@ -771,7 +814,7 @@ class SearchResultsScreen extends StatelessWidget {
                             ),
                           )
                         : ListView.builder(
-                            controller: scrollController,
+                            controller: _scrollController,
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             itemCount:
                                 state.searchResults.length +

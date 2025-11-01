@@ -1,3 +1,4 @@
+import 'package:assignment_travaly/presentation/home/data/models/hotel_search_payload.dart';
 import 'package:assignment_travaly/presentation/home/data/models/search_autocomplete_model.dart';
 import 'package:equatable/equatable.dart';
 
@@ -10,6 +11,7 @@ enum AutocompleteStatus { initial, loading, success, failure }
 class HotelSearchState extends Equatable {
   // Search Query
   final String searchQuery;
+  final List<String> searchQueries; // Multiple queries from autocomplete
 
   // Date Selection
   final DateTime? checkInDate;
@@ -31,7 +33,7 @@ class HotelSearchState extends Equatable {
   final String? errorMessage;
 
   // Pagination
-  final int currentPage;
+  final int currentPage; // Using 'rid' from API (0-based)
   final bool hasMoreData;
   final int itemsPerPage;
 
@@ -41,6 +43,7 @@ class HotelSearchState extends Equatable {
   // Additional Configuration
   final String searchType;
   final List<String> excludedSearchTypes;
+  final List<String> excludedHotels;
   final String currency;
 
   //auto-complete
@@ -49,6 +52,7 @@ class HotelSearchState extends Equatable {
 
   const HotelSearchState({
     this.searchQuery = '',
+    this.searchQueries = const [],
     this.checkInDate,
     this.checkOutDate,
     this.rooms = 1,
@@ -60,12 +64,13 @@ class HotelSearchState extends Equatable {
     this.searchResults = const [],
     this.searchStatus = SearchStatus.initial,
     this.errorMessage,
-    this.currentPage = 1,
+    this.currentPage = 0,
     this.hasMoreData = true,
-    this.itemsPerPage = 10,
+    this.itemsPerPage = 5,
     this.isSearchMode = false,
-    this.searchType = 'city',
+    this.searchType = 'citySearch',
     this.excludedSearchTypes = const [],
+    this.excludedHotels = const [],
     this.currency = 'INR',
     this.autocompleteResults = const [],
     this.autocompleteStatus = AutocompleteStatus.initial,
@@ -79,7 +84,9 @@ class HotelSearchState extends Equatable {
 
   bool get hasValidDates => checkInDate != null && checkOutDate != null;
 
-  bool get canSearch => searchQuery.trim().isNotEmpty && hasValidDates;
+  bool get canSearch =>
+      (searchQuery.trim().isNotEmpty || searchQueries.isNotEmpty) &&
+      hasValidDates;
 
   int get totalGuests => adults + children;
 
@@ -96,6 +103,7 @@ class HotelSearchState extends Equatable {
 
   HotelSearchState copyWith({
     String? searchQuery,
+    List<String>? searchQueries,
     DateTime? checkInDate,
     DateTime? checkOutDate,
     int? rooms,
@@ -113,12 +121,14 @@ class HotelSearchState extends Equatable {
     bool? isSearchMode,
     String? searchType,
     List<String>? excludedSearchTypes,
+    List<String>? excludedHotels,
     String? currency,
     List<AutocompleteItem>? autocompleteResults,
     AutocompleteStatus? autocompleteStatus,
   }) {
     return HotelSearchState(
       searchQuery: searchQuery ?? this.searchQuery,
+      searchQueries: searchQueries ?? this.searchQueries,
       checkInDate: checkInDate ?? this.checkInDate,
       checkOutDate: checkOutDate ?? this.checkOutDate,
       rooms: rooms ?? this.rooms,
@@ -137,6 +147,7 @@ class HotelSearchState extends Equatable {
       isSearchMode: isSearchMode ?? this.isSearchMode,
       searchType: searchType ?? this.searchType,
       excludedSearchTypes: excludedSearchTypes ?? this.excludedSearchTypes,
+      excludedHotels: excludedHotels ?? this.excludedHotels,
       currency: currency ?? this.currency,
       autocompleteResults: autocompleteResults ?? this.autocompleteResults,
       autocompleteStatus: autocompleteStatus ?? this.autocompleteStatus,
@@ -147,6 +158,7 @@ class HotelSearchState extends Equatable {
   HotelSearchState clearDates() {
     return HotelSearchState(
       searchQuery: searchQuery,
+      searchQueries: searchQueries,
       checkInDate: null,
       checkOutDate: null,
       rooms: rooms,
@@ -164,6 +176,7 @@ class HotelSearchState extends Equatable {
       isSearchMode: isSearchMode,
       searchType: searchType,
       excludedSearchTypes: excludedSearchTypes,
+      excludedHotels: excludedHotels,
       currency: currency,
     );
   }
@@ -179,9 +192,10 @@ class HotelSearchState extends Equatable {
       searchResults: [],
       searchStatus: SearchStatus.initial,
       errorMessage: null,
-      currentPage: 1,
+      currentPage: 0,
       hasMoreData: true,
       isSearchMode: false,
+      excludedHotels: [],
     );
   }
 
@@ -194,35 +208,62 @@ class HotelSearchState extends Equatable {
     );
   }
 
+  /// Creates a properly structured search payload using the model classes
   Map<String, dynamic> toSearchPayload() {
     if (!hasValidDates) return {};
 
-    return {
-      "searchCriteria": {
-        "checkIn":
-            "${checkInDate!.year}-${checkInDate!.month.toString().padLeft(2, '0')}-${checkInDate!.day.toString().padLeft(2, '0')}",
-        "checkOut":
-            "${checkOutDate!.year}-${checkOutDate!.month.toString().padLeft(2, '0')}-${checkOutDate!.day.toString().padLeft(2, '0')}",
-        "rooms": rooms,
-        "adults": adults,
-        "children": children,
-        "searchType": searchType,
-        "searchQuery": [searchQuery],
-        "accommodation": selectedAccommodationTypes,
-        "arrayOfExcludedSearchType": excludedSearchTypes,
-        "highPrice": maxPrice.toString(),
-        "lowPrice": minPrice.toString(),
-        "limit": itemsPerPage,
-        "preloaderList": [],
-        "currency": currency,
-        "rid": currentPage - 1,
-      },
-    };
+    // Determine search queries to use
+    // Priority: Use searchQueries from autocomplete if available, otherwise use typed searchQuery
+    List<String> queries;
+    if (searchQueries.isNotEmpty) {
+      queries = searchQueries;
+      print(
+        '🔍 Using autocomplete queries: $searchQueries (Type: $searchType)',
+      );
+    } else {
+      queries = [searchQuery.trim()];
+      print('🔍 Using typed query: ${searchQuery.trim()} (Type: $searchType)');
+    }
+
+    // Create search criteria from state
+    final searchCriteria = SearchCriteria.fromState(
+      checkInDate: checkInDate!,
+      checkOutDate: checkOutDate!,
+      rooms: rooms,
+      adults: adults,
+      children: children,
+      searchType: searchType,
+      searchQuery: queries,
+      accommodation: selectedAccommodationTypes,
+      excludedSearchTypes: excludedSearchTypes,
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      itemsPerPage: itemsPerPage,
+      excludedHotels: excludedHotels,
+      currency: currency,
+      currentPage: currentPage,
+    );
+
+    // Create the full payload structure
+    final payload = HotelSearchPayload(
+      getSearchResultListOfHotels: SearchRequest(
+        searchCriteria: searchCriteria,
+      ),
+    );
+
+    final payloadJson = payload.toJson();
+
+    print('📦 Final payload searchType: $searchType');
+    print('📦 Final payload searchQuery: $queries');
+    print('📦 Complete payload: $payloadJson');
+
+    return payloadJson;
   }
 
   @override
   List<Object?> get props => [
     searchQuery,
+    searchQueries,
     checkInDate,
     checkOutDate,
     rooms,
@@ -240,6 +281,7 @@ class HotelSearchState extends Equatable {
     isSearchMode,
     searchType,
     excludedSearchTypes,
+    excludedHotels,
     currency,
     autocompleteResults,
     autocompleteStatus,
@@ -249,6 +291,7 @@ class HotelSearchState extends Equatable {
   String toString() {
     return '''HotelSearchState {
       searchQuery: $searchQuery,
+      searchQueries: $searchQueries,
       checkInDate: $checkInDate,
       checkOutDate: $checkOutDate,
       rooms: $rooms,
