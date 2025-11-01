@@ -1,6 +1,7 @@
-import 'package:assignment_travaly/presentation/home/data/models/hotel_model.dart';
 import 'package:assignment_travaly/presentation/home/data/models/search_autocomplete_model.dart';
 import 'package:equatable/equatable.dart';
+
+import '../data/models/search_results_model.dart';
 
 enum SearchStatus { initial, loading, loadingMore, success, failure, empty }
 

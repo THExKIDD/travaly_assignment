@@ -1,7 +1,7 @@
 import 'package:assignment_travaly/presentation/home/bloc/hotel_search_bloc.dart';
 import 'package:assignment_travaly/presentation/home/bloc/hotel_search_event.dart';
 import 'package:assignment_travaly/presentation/home/bloc/hotel_search_state.dart';
-import 'package:assignment_travaly/presentation/home/widgets/hotel_card.dart';
+import 'package:assignment_travaly/presentation/home/data/models/search_results_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -355,7 +355,6 @@ class SearchResultsScreen extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Dispatch BLoC events
                       context.read<HotelSearchBloc>().add(
                         FiltersUpdated(
                           accommodationTypes: tempAccommodationTypes,
@@ -364,7 +363,6 @@ class SearchResultsScreen extends StatelessWidget {
                         ),
                       );
                       Navigator.pop(context);
-                      // Trigger search with new filters
                       context.read<HotelSearchBloc>().add(
                         const SearchSubmitted(),
                       );
@@ -590,7 +588,7 @@ class SearchResultsScreen extends StatelessWidget {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '${state.searchResults.length} ${state.searchResults.length == 1 ? 'hotel' : 'hotels'} found',
+                                        '${state.searchResults.length} ${state.searchResults.length == 1 ? 'property' : 'properties'} found',
                                         style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w700,
@@ -724,7 +722,7 @@ class SearchResultsScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 24),
                                   const Text(
-                                    'No Hotels Found',
+                                    'No Properties Found',
                                     style: TextStyle(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w700,
@@ -827,6 +825,445 @@ class SearchResultsScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class HotelCard extends StatelessWidget {
+  final Hotel hotel;
+
+  const HotelCard({super.key, required this.hotel});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasReview = hotel.googleReview?.reviewPresent ?? false;
+    final rating = hotel.googleReview?.data?.overallRating ?? 0.0;
+    final reviewCount = hotel.googleReview?.data?.totalUserRating ?? 0;
+    final minPrice = hotel.propertyMinPrice?.amount ?? 0.0;
+    final displayPrice = hotel.propertyMinPrice?.displayAmount ?? '₹0';
+    final imageUrl = hotel.propertyImage?.fullUrl ?? '';
+    final hasFreeWifi =
+        hotel.propertyPoliciesAndAmmenities?.data?.freeWifi ?? false;
+    final hasFreeCancellation =
+        hotel.propertyPoliciesAndAmmenities?.data?.freeCancellation ?? false;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF6F61).withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image Section
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 200,
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: Icon(
+                                Icons.image_not_supported,
+                                size: 48,
+                                color: Color(0xFF6B6B6B),
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        height: 200,
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: Icon(
+                            Icons.hotel,
+                            size: 48,
+                            color: Color(0xFF6B6B6B),
+                          ),
+                        ),
+                      ),
+              ),
+
+              // Property Type Badge
+              if (hotel.propertyType != null)
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      hotel.propertyType!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFFF6F61),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Favorite Icon
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    hotel.isFavorite == true
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    size: 20,
+                    color: hotel.isFavorite == true
+                        ? const Color(0xFFFF6F61)
+                        : const Color(0xFF6B6B6B),
+                  ),
+                ),
+              ),
+
+              // Star Rating Badge
+              if (hotel.propertyStar != null && hotel.propertyStar! > 0)
+                Positioned(
+                  bottom: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF6F61),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star, size: 14, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${hotel.propertyStar}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          // Details Section
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Property Name
+                Text(
+                  hotel.propertyName ?? 'Property',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2C2C2C),
+                    height: 1.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+                const SizedBox(height: 8),
+
+                // Location
+                if (hotel.propertyAddress != null)
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 16,
+                        color: Color(0xFF6B6B6B),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          [
+                            hotel.propertyAddress!.city,
+                            hotel.propertyAddress!.state,
+                            hotel.propertyAddress!.country,
+                          ].where((e) => e != null && e.isNotEmpty).join(', '),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF6B6B6B),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                const SizedBox(height: 12),
+
+                // Rating and Reviews
+                if (hasReview)
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6F61).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              size: 14,
+                              color: Color(0xFFFF6F61),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              rating.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFFF6F61),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '($reviewCount ${reviewCount == 1 ? 'review' : 'reviews'})',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B6B6B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                const SizedBox(height: 12),
+
+                // Amenities Row
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (hasFreeWifi) _buildAmenityChip(Icons.wifi, 'Free WiFi'),
+                    if (hasFreeCancellation)
+                      _buildAmenityChip(
+                        Icons.cancel_outlined,
+                        'Free Cancellation',
+                      ),
+                    if (hotel
+                            .propertyPoliciesAndAmmenities
+                            ?.data
+                            ?.coupleFriendly ==
+                        true)
+                      _buildAmenityChip(
+                        Icons.favorite_border,
+                        'Couple Friendly',
+                      ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Divider
+                Container(height: 1, color: Colors.grey[200]),
+
+                const SizedBox(height: 16),
+
+                // Price and Book Button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Starting from',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF6B6B6B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            displayPrice,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFFF6F61),
+                              height: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'per night',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF6B6B6B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Handle booking
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF6F61),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View Details',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_rounded, size: 16),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Available Deals
+                if (hotel.availableDeals != null &&
+                    hotel.availableDeals!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF5F4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: const Color(0xFFFF6F61).withOpacity(0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.local_offer_outlined,
+                            size: 16,
+                            color: Color(0xFFFF6F61),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${hotel.availableDeals!.length} ${hotel.availableDeals!.length == 1 ? 'deal' : 'deals'} available',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFFF6F61),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAmenityChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF6B6B6B)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B6B6B),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

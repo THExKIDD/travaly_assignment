@@ -1,5 +1,5 @@
-import 'package:assignment_travaly/presentation/home/data/models/hotel_model.dart';
 import 'package:assignment_travaly/presentation/home/data/models/search_autocomplete_model.dart';
+import 'package:assignment_travaly/presentation/home/data/models/search_results_model.dart';
 import 'package:assignment_travaly/presentation/home/data/repo/hotel_search_repo.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -359,19 +359,107 @@ class HotelSearchBloc extends Bloc<HotelSearchEvent, HotelSearchState> {
       'Texas',
       'Colorado',
     ];
+    final propertyTypes = [
+      'Hotel',
+      'Resort',
+      'Villa',
+      'Apartment',
+      'Guesthouse',
+    ];
 
     return List.generate(state.itemsPerPage, (index) {
       final globalIndex = (page - 1) * state.itemsPerPage + index;
       final cityIndex = globalIndex % cities.length;
+      final basePrice = 150.0 + (globalIndex * 20);
+      final rating = 4.0 + (globalIndex % 10) / 10;
 
       return Hotel(
-        name: 'Hotel $query ${globalIndex + 1}',
-        city: cities[cityIndex],
-        state: states[cityIndex],
-        country: 'USA',
-        rating: 4.0 + (globalIndex % 10) / 10,
-        pricePerNight: 150.0 + (globalIndex * 20),
-        imageUrl: 'https://picsum.photos/400/300?random=${globalIndex + 10}',
+        propertyCode: 'PROP${globalIndex + 1000}',
+        propertyName:
+            '${propertyTypes[globalIndex % propertyTypes.length]} $query ${globalIndex + 1}',
+        propertyImage: PropertyImage(
+          fullUrl: 'https://picsum.photos/400/300?random=${globalIndex + 10}',
+          location: 'images/hotels/',
+          imageName: 'hotel_${globalIndex + 1}.jpg',
+        ),
+        propertyType: propertyTypes[globalIndex % propertyTypes.length],
+        propertyStar: (rating.toInt().clamp(1, 5)),
+        propertyPoliciesAndAmmenities: PropertyPoliciesAndAmenities(
+          present: true,
+          data: PolicyData(
+            freeWifi: globalIndex % 2 == 0,
+            freeCancellation: globalIndex % 3 == 0,
+            payAtHotel: globalIndex % 4 == 0,
+            petsAllowed: globalIndex % 5 == 0,
+            coupleFriendly: true,
+            bachularsAllowed: globalIndex % 3 != 0,
+            suitableForChildren: globalIndex % 2 == 0,
+          ),
+        ),
+        propertyAddress: PropertyAddress(
+          street: '${100 + globalIndex} Main Street',
+          city: cities[cityIndex],
+          state: states[cityIndex],
+          country: 'USA',
+          zipcode: '${10000 + globalIndex}',
+          mapAddress: '${cities[cityIndex]}, ${states[cityIndex]}, USA',
+          latitude: 40.7128 + (globalIndex * 0.1),
+          longitude: -74.0060 + (globalIndex * 0.1),
+        ),
+        propertyUrl: 'https://example.com/hotel/${globalIndex + 1}',
+        roomName: 'Deluxe Room',
+        numberOfAdults: state.adults,
+        markedPrice: Price(
+          amount: basePrice * 1.2,
+          displayAmount: '₹${(basePrice * 1.2).toStringAsFixed(0)}',
+          currencyAmount: (basePrice * 1.2).toStringAsFixed(2),
+          currencySymbol: '₹',
+        ),
+        propertyMinPrice: Price(
+          amount: basePrice,
+          displayAmount: '₹${basePrice.toStringAsFixed(0)}',
+          currencyAmount: basePrice.toStringAsFixed(2),
+          currencySymbol: '₹',
+        ),
+        propertyMaxPrice: Price(
+          amount: basePrice * 1.5,
+          displayAmount: '₹${(basePrice * 1.5).toStringAsFixed(0)}',
+          currencyAmount: (basePrice * 1.5).toStringAsFixed(2),
+          currencySymbol: '₹',
+        ),
+        availableDeals: [
+          AvailableDeal(
+            headerName: 'Early Bird Discount',
+            websiteUrl: 'https://example.com/deals',
+            dealType: 'discount',
+            price: Price(
+              amount: basePrice * 0.9,
+              displayAmount: '₹${(basePrice * 0.9).toStringAsFixed(0)}',
+              currencyAmount: (basePrice * 0.9).toStringAsFixed(2),
+              currencySymbol: '₹',
+            ),
+          ),
+        ],
+        subscriptionStatus: SubscriptionStatus(status: globalIndex % 4 == 0),
+        propertyView: 1000 + (globalIndex * 50),
+        isFavorite: false,
+        simplPriceList: SimplPriceList(
+          simplPrice: Price(
+            amount: basePrice * 0.95,
+            displayAmount: '₹${(basePrice * 0.95).toStringAsFixed(0)}',
+            currencyAmount: (basePrice * 0.95).toStringAsFixed(2),
+            currencySymbol: '₹',
+          ),
+          originalPrice: basePrice,
+        ),
+        googleReview: GoogleReview(
+          reviewPresent: true,
+          data: ReviewData(
+            overallRating: rating,
+            totalUserRating: 100 + (globalIndex * 10),
+            withoutDecimal: rating.toInt(),
+          ),
+        ),
       );
     });
   }
