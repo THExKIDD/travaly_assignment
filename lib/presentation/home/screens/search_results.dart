@@ -1,6 +1,7 @@
 import 'package:assignment_travaly/presentation/home/bloc/hotel_search_bloc.dart';
 import 'package:assignment_travaly/presentation/home/bloc/hotel_search_event.dart';
 import 'package:assignment_travaly/presentation/home/bloc/hotel_search_state.dart';
+import 'package:assignment_travaly/presentation/home/data/models/accomodation_type_model.dart';
 import 'package:assignment_travaly/presentation/home/data/models/search_results_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -45,34 +46,70 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   // Accommodation type options
-  static final List<Map<String, dynamic>> _accommodationTypes = [
-    {'value': 'all', 'label': 'All', 'icon': Icons.hotel},
-    {'value': 'hotel', 'label': 'Hotel', 'icon': Icons.apartment},
-    {'value': 'resort', 'label': 'Resort', 'icon': Icons.pool},
-    {'value': 'Boat House', 'label': 'Boat House', 'icon': Icons.sailing},
-    {'value': 'bedAndBreakfast', 'label': 'B&B', 'icon': Icons.bed},
-    {'value': 'guestHouse', 'label': 'Guest House', 'icon': Icons.house},
-    {
-      'value': 'Holidayhome',
-      'label': 'Holiday Home',
-      'icon': Icons.home_outlined,
-    },
-    {'value': 'cottage', 'label': 'Cottage', 'icon': Icons.cottage},
-    {
-      'value': 'apartment',
-      'label': 'Apartment',
-      'icon': Icons.apartment_outlined,
-    },
-    {'value': 'Home Stay', 'label': 'Home Stay', 'icon': Icons.home_work},
-    {'value': 'hostel', 'label': 'Hostel', 'icon': Icons.groups},
-    {'value': 'Villa', 'label': 'Villa', 'icon': Icons.villa},
-    {'value': 'Motel', 'label': 'Motel', 'icon': Icons.local_hotel},
-    {
-      'value': 'Capsule Hotel',
-      'label': 'Capsule Hotel',
-      'icon': Icons.king_bed,
-    },
-    {'value': 'co_living', 'label': 'Co-living', 'icon': Icons.people},
+  static final List<AccommodationTypeModel> _accommodationTypes = [
+    AccommodationTypeModel(value: 'all', label: 'All', icon: Icons.hotel),
+    AccommodationTypeModel(
+      value: 'hotel',
+      label: 'Hotel',
+      icon: Icons.apartment,
+    ),
+    AccommodationTypeModel(value: 'resort', label: 'Resort', icon: Icons.pool),
+    AccommodationTypeModel(
+      value: 'Boat House',
+      label: 'Boat House',
+      icon: Icons.sailing,
+    ),
+    AccommodationTypeModel(
+      value: 'bedAndBreakfast',
+      label: 'B&B',
+      icon: Icons.bed,
+    ),
+    AccommodationTypeModel(
+      value: 'guestHouse',
+      label: 'Guest House',
+      icon: Icons.house,
+    ),
+    AccommodationTypeModel(
+      value: 'Holidayhome',
+      label: 'Holiday Home',
+      icon: Icons.home_outlined,
+    ),
+    AccommodationTypeModel(
+      value: 'cottage',
+      label: 'Cottage',
+      icon: Icons.cottage,
+    ),
+    AccommodationTypeModel(
+      value: 'apartment',
+      label: 'Apartment',
+      icon: Icons.apartment_outlined,
+    ),
+    AccommodationTypeModel(
+      value: 'Home Stay',
+      label: 'Home Stay',
+      icon: Icons.home_work,
+    ),
+    AccommodationTypeModel(
+      value: 'hostel',
+      label: 'Hostel',
+      icon: Icons.groups,
+    ),
+    AccommodationTypeModel(value: 'Villa', label: 'Villa', icon: Icons.villa),
+    AccommodationTypeModel(
+      value: 'Motel',
+      label: 'Motel',
+      icon: Icons.local_hotel,
+    ),
+    AccommodationTypeModel(
+      value: 'Capsule Hotel',
+      label: 'Capsule Hotel',
+      icon: Icons.king_bed,
+    ),
+    AccommodationTypeModel(
+      value: 'co_living',
+      label: 'Co-living',
+      icon: Icons.people,
+    ),
   ];
 
   void _showFiltersModal(BuildContext context, HotelSearchState state) {
@@ -292,24 +329,22 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                         runSpacing: 8,
                         children: _accommodationTypes.map((type) {
                           final isSelected = tempAccommodationTypes.contains(
-                            type['value'],
+                            type.value,
                           );
                           return InkWell(
                             onTap: () {
                               setModalState(() {
-                                if (type['value'] == 'all') {
+                                if (type.value == 'all') {
                                   tempAccommodationTypes = ['all'];
                                 } else {
                                   tempAccommodationTypes.remove('all');
                                   if (isSelected) {
-                                    tempAccommodationTypes.remove(
-                                      type['value'],
-                                    );
+                                    tempAccommodationTypes.remove(type.value);
                                     if (tempAccommodationTypes.isEmpty) {
                                       tempAccommodationTypes = ['all'];
                                     }
                                   } else {
-                                    tempAccommodationTypes.add(type['value']);
+                                    tempAccommodationTypes.add(type.value);
                                   }
                                 }
                               });
@@ -335,7 +370,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    type['icon'],
+                                    type.icon,
                                     size: 18,
                                     color: isSelected
                                         ? Colors.white
@@ -343,7 +378,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    type['label'],
+                                    type.label,
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -579,7 +614,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
@@ -591,126 +626,70 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFFFF6F61,
-                                    ).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.hotel_rounded,
-                                    color: Color(0xFFFF6F61),
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${state.searchResults.length} ${state.searchResults.length == 1 ? 'property' : 'properties'} found',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF2C2C2C),
-                                        ),
-                                      ),
-                                      Text(
-                                        'Matching your preferences',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF5F4),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                            Expanded(
                               child: Row(
                                 children: [
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.calendar_today_rounded,
-                                          size: 14,
-                                          color: Color(0xFF6B6B6B),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Flexible(
-                                          child: Text(
-                                            '${checkInDate.day} ${_getMonthName(checkInDate.month)} - ${checkOutDate.day} ${_getMonthName(checkOutDate.month)}',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF2C2C2C),
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  const Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 14,
+                                    color: Color(0xFF6B6B6B),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(
-                                        0xFFFF6F61,
-                                      ).withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
                                     child: Text(
-                                      '$nights ${nights == 1 ? 'night' : 'nights'}',
+                                      '${checkInDate.day} ${_getMonthName(checkInDate.month)} - ${checkOutDate.day} ${_getMonthName(checkOutDate.month)}',
                                       style: const TextStyle(
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: FontWeight.w600,
-                                        color: Color(0xFFFF6F61),
+                                        color: Color(0xFF2C2C2C),
                                       ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.people_outline_rounded,
-                                        size: 14,
-                                        color: Color(0xFF6B6B6B),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '$totalGuests, ${state.rooms} ${state.rooms == 1 ? 'room' : 'rooms'}',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF2C2C2C),
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ],
                               ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFFFF6F61,
+                                ).withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '$nights ${nights == 1 ? 'night' : 'nights'}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFFF6F61),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.people_outline_rounded,
+                                  size: 14,
+                                  color: Color(0xFF6B6B6B),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$totalGuests, ${state.rooms} ${state.rooms == 1 ? 'room' : 'rooms'}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF2C2C2C),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -881,8 +860,6 @@ class HotelCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasReview = hotel.googleReview?.reviewPresent ?? false;
     final rating = hotel.googleReview?.data?.overallRating ?? 0.0;
-    final reviewCount = hotel.googleReview?.data?.totalUserRating ?? 0;
-    final minPrice = hotel.propertyMinPrice?.amount ?? 0.0;
     final displayPrice = hotel.propertyMinPrice?.displayAmount ?? '₹0';
     final imageUrl = hotel.propertyImage?.fullUrl ?? '';
     final hasFreeWifi =
@@ -915,12 +892,12 @@ class HotelCard extends StatelessWidget {
                 child: imageUrl.isNotEmpty
                     ? Image.network(
                         imageUrl,
-                        height: 200,
+                        height: 160,
                         width: double.infinity,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
-                            height: 200,
+                            height: 160,
                             color: Colors.grey[200],
                             child: const Center(
                               child: Icon(
@@ -933,7 +910,7 @@ class HotelCard extends StatelessWidget {
                         },
                       )
                     : Container(
-                        height: 200,
+                        height: 160,
                         color: Colors.grey[200],
                         child: const Center(
                           child: Icon(
@@ -952,8 +929,8 @@ class HotelCard extends StatelessWidget {
                   left: 12,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                      horizontal: 10,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -977,34 +954,48 @@ class HotelCard extends StatelessWidget {
                   ),
                 ),
 
-              // Favorite Icon
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    hotel.isFavorite == true
-                        ? Icons.favorite
-                        : Icons.favorite_border,
-                    size: 20,
-                    color: hotel.isFavorite == true
-                        ? const Color(0xFFFF6F61)
-                        : const Color(0xFF6B6B6B),
+              // Rating Badge
+              if (hasReview && rating > 0)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          size: 12,
+                          color: Color(0xFFFFB800),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2C2C2C),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
               // Star Rating Badge
               if (hotel.propertyStar != null && hotel.propertyStar! > 0)
@@ -1013,8 +1004,8 @@ class HotelCard extends StatelessWidget {
                   left: 12,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                      horizontal: 8,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFF6F61),
@@ -1023,12 +1014,12 @@ class HotelCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.star, size: 14, color: Colors.white),
+                        const Icon(Icons.star, size: 12, color: Colors.white),
                         const SizedBox(width: 4),
                         Text(
                           '${hotel.propertyStar}',
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
                           ),
@@ -1042,7 +1033,7 @@ class HotelCard extends StatelessWidget {
 
           // Details Section
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1050,7 +1041,7 @@ class HotelCard extends StatelessWidget {
                 Text(
                   hotel.propertyName ?? 'Property',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF2C2C2C),
                     height: 1.3,
@@ -1059,7 +1050,7 @@ class HotelCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // Location
                 if (hotel.propertyAddress != null)
@@ -1067,7 +1058,7 @@ class HotelCard extends StatelessWidget {
                     children: [
                       const Icon(
                         Icons.location_on_outlined,
-                        size: 16,
+                        size: 14,
                         color: Color(0xFF6B6B6B),
                       ),
                       const SizedBox(width: 4),
@@ -1079,7 +1070,7 @@ class HotelCard extends StatelessWidget {
                             hotel.propertyAddress!.country,
                           ].where((e) => e != null && e.isNotEmpty).join(', '),
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             color: Color(0xFF6B6B6B),
                             fontWeight: FontWeight.w500,
                           ),
@@ -1090,59 +1081,12 @@ class HotelCard extends StatelessWidget {
                     ],
                   ),
 
-                const SizedBox(height: 12),
-
-                // Rating and Reviews
-                if (hasReview)
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF6F61).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              size: 14,
-                              color: Color(0xFFFF6F61),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              rating.toStringAsFixed(1),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFFFF6F61),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '($reviewCount ${reviewCount == 1 ? 'review' : 'reviews'})',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B6B6B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 // Amenities Row
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 6,
+                  runSpacing: 6,
                   children: [
                     if (hasFreeWifi) _buildAmenityChip(Icons.wifi, 'Free WiFi'),
                     if (hasFreeCancellation)
@@ -1162,12 +1106,12 @@ class HotelCard extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
                 // Divider
                 Container(height: 1, color: Colors.grey[200]),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
                 // Price and Book Button
                 Row(
@@ -1180,16 +1124,16 @@ class HotelCard extends StatelessWidget {
                           const Text(
                             'Starting from',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               color: Color(0xFF6B6B6B),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             displayPrice,
                             style: const TextStyle(
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFFFF6F61),
                               height: 1,
@@ -1199,7 +1143,7 @@ class HotelCard extends StatelessWidget {
                           const Text(
                             'per night',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               color: Color(0xFF6B6B6B),
                               fontWeight: FontWeight.w500,
                             ),
@@ -1215,8 +1159,8 @@ class HotelCard extends StatelessWidget {
                         backgroundColor: const Color(0xFFFF6F61),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 14,
+                          horizontal: 20,
+                          vertical: 12,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -1229,12 +1173,12 @@ class HotelCard extends StatelessWidget {
                           Text(
                             'View Details',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           SizedBox(width: 4),
-                          Icon(Icons.arrow_forward_rounded, size: 16),
+                          Icon(Icons.arrow_forward_rounded, size: 14),
                         ],
                       ),
                     ),
@@ -1245,9 +1189,9 @@ class HotelCard extends StatelessWidget {
                 if (hotel.availableDeals != null &&
                     hotel.availableDeals!.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.only(top: 10),
                     child: Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF5F4),
                         borderRadius: BorderRadius.circular(8),
@@ -1259,15 +1203,15 @@ class HotelCard extends StatelessWidget {
                         children: [
                           const Icon(
                             Icons.local_offer_outlined,
-                            size: 16,
+                            size: 14,
                             color: Color(0xFFFF6F61),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               '${hotel.availableDeals!.length} ${hotel.availableDeals!.length == 1 ? 'deal' : 'deals'} available',
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: Color(0xFFFF6F61),
                               ),
@@ -1287,20 +1231,20 @@ class HotelCard extends StatelessWidget {
 
   Widget _buildAmenityChip(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: const Color(0xFF6B6B6B)),
-          const SizedBox(width: 6),
+          Icon(icon, size: 12, color: const Color(0xFF6B6B6B)),
+          const SizedBox(width: 4),
           Text(
             label,
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
               color: Color(0xFF6B6B6B),
             ),

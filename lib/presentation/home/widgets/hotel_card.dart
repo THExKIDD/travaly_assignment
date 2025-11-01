@@ -10,7 +10,6 @@ class HotelCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasReview = hotel.googleReview?.reviewPresent ?? false;
     final rating = hotel.googleReview?.data?.overallRating ?? 0.0;
-    final reviewCount = hotel.googleReview?.data?.totalUserRating ?? 0;
     final displayPrice = hotel.propertyMinPrice?.displayAmount ?? '₹0';
     final imageUrl = hotel.propertyImage?.fullUrl ?? '';
     final hasFreeWifi =
@@ -45,12 +44,12 @@ class HotelCard extends StatelessWidget {
                 child: imageUrl.isNotEmpty
                     ? Image.network(
                         imageUrl,
-                        height: 220,
+                        height: 180,
                         width: double.infinity,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
-                            height: 220,
+                            height: 180,
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
@@ -70,7 +69,7 @@ class HotelCard extends StatelessWidget {
                         },
                       )
                     : Container(
-                        height: 220,
+                        height: 180,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
@@ -89,7 +88,7 @@ class HotelCard extends StatelessWidget {
                       ),
               ),
 
-              // Rating Badge (Google Review)
+              // Google Review Rating Badge (Top Right)
               if (hasReview && rating > 0)
                 Positioned(
                   top: 16,
@@ -110,21 +109,49 @@ class HotelCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Row(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          color: Color(0xFFFFB800),
-                          size: 18,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.network(
+                              'https://www.google.com/favicon.ico',
+                              width: 14,
+                              height: 14,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(
+                                  Icons.g_mobiledata_rounded,
+                                  size: 14,
+                                  color: Color(0xFF4285F4),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              rating.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF2C2C2C),
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Color(0xFFFFB800),
+                              size: 14,
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF2C2C2C),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Google',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF6B6B6B),
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ],
@@ -159,7 +186,7 @@ class HotelCard extends StatelessWidget {
                 ),
               ),
 
-              // Property Type and Star Badge
+              // Property Type and Star Classification Badge (Bottom Left)
               Positioned(
                 bottom: 16,
                 left: 16,
@@ -185,47 +212,6 @@ class HotelCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                    if (hotel.propertyType != null &&
-                        hotel.propertyStar != null &&
-                        hotel.propertyStar! > 0)
-                      const SizedBox(width: 8),
-                    if (hotel.propertyStar != null && hotel.propertyStar! > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              size: 12,
-                              color: Color(0xFFFFB800),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${hotel.propertyStar}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF2C2C2C),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -234,7 +220,7 @@ class HotelCard extends StatelessWidget {
 
           // Hotel Details
           Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -242,7 +228,7 @@ class HotelCard extends StatelessWidget {
                 Text(
                   hotel.propertyName ?? 'Property',
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF2C2C2C),
                     letterSpacing: -0.5,
@@ -250,7 +236,7 @@ class HotelCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
                 // Location
                 if (hotel.propertyAddress != null)
@@ -277,7 +263,7 @@ class HotelCard extends StatelessWidget {
                             hotel.propertyAddress!.country,
                           ].where((e) => e != null && e.isNotEmpty).join(', '),
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             color: Color(0xFF6B6B6B),
                             fontWeight: FontWeight.w500,
                           ),
@@ -288,24 +274,10 @@ class HotelCard extends StatelessWidget {
                     ],
                   ),
 
-                // Reviews Count
-                if (hasReview && reviewCount > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      '($reviewCount ${reviewCount == 1 ? 'review' : 'reviews'})',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF6B6B6B),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-
                 // Amenities
                 if (hasFreeWifi || hasFreeCancellation || isCoupleFriendly)
                   Padding(
-                    padding: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.only(top: 10),
                     child: Wrap(
                       spacing: 6,
                       runSpacing: 6,
@@ -326,11 +298,11 @@ class HotelCard extends StatelessWidget {
                     ),
                   ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 // Divider
                 Container(height: 1, color: const Color(0xFFE0E0E0)),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 // Price and Button
                 Row(
@@ -350,7 +322,7 @@ class HotelCard extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.baseline,
                             textBaseline: TextBaseline.alphabetic,
@@ -359,7 +331,7 @@ class HotelCard extends StatelessWidget {
                                 child: Text(
                                   displayPrice,
                                   style: const TextStyle(
-                                    fontSize: 24,
+                                    fontSize: 22,
                                     fontWeight: FontWeight.w700,
                                     color: Color(0xFFFF6F61),
                                     letterSpacing: -0.5,
@@ -371,7 +343,7 @@ class HotelCard extends StatelessWidget {
                               const Text(
                                 '/night',
                                 style: TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                   color: Color(0xFF6B6B6B),
                                 ),
@@ -392,8 +364,8 @@ class HotelCard extends StatelessWidget {
                         backgroundColor: const Color(0xFFFF6F61),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 14,
+                          horizontal: 20,
+                          vertical: 12,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -406,13 +378,13 @@ class HotelCard extends StatelessWidget {
                           Text(
                             'View Details',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.2,
                             ),
                           ),
                           SizedBox(width: 6),
-                          Icon(Icons.arrow_forward_rounded, size: 16),
+                          Icon(Icons.arrow_forward_rounded, size: 14),
                         ],
                       ),
                     ),
@@ -423,7 +395,7 @@ class HotelCard extends StatelessWidget {
                 if (hotel.availableDeals != null &&
                     hotel.availableDeals!.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.only(top: 10),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,

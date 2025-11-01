@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:assignment_travaly/core/theme/app_theme_data.dart';
 import 'package:assignment_travaly/presentation/home/bloc/hotel_search_bloc.dart';
 import 'package:assignment_travaly/presentation/home/bloc/hotel_search_event.dart';
@@ -93,7 +95,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
   final GlobalKey _searchFieldKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   bool _isAutocompleteVisible = false;
-  bool _ignoreTextChange = false; // 🆕 Flag to ignore text changes
+  bool _ignoreTextChange = false; // Flag to ignore text changes
 
   @override
   void initState() {
@@ -115,7 +117,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
   }
 
   void _onTextChanged() {
-    // 🆕 Skip if we're programmatically setting the text
+    // Skip if we're programmatically setting the text
     if (_ignoreTextChange) return;
 
     final hasTextNow = widget.searchController.text.isNotEmpty;
@@ -189,12 +191,12 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
             child: AutocompleteOverlay(
               suggestions: suggestions,
               onSuggestionTap: (result) {
-                // 🆕 Set flag to ignore the text change event
+                // Set flag to ignore the text change event
                 _ignoreTextChange = true;
 
                 widget.searchController.text = result.valueToDisplay;
 
-                // 🆕 Reset flag after a brief delay
+                // Reset flag after a brief delay
                 Future.delayed(const Duration(milliseconds: 50), () {
                   _ignoreTextChange = false;
                 });
@@ -205,9 +207,9 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
                 String searchType = result.searchArray.type;
 
                 // Debug logs
-                print('🔍 Display: ${result.valueToDisplay}');
-                print('🔍 Type: $searchType');
-                print('🔍 Queries: $searchQueries');
+                log('🔍 Display: ${result.valueToDisplay}');
+                log('🔍 Type: $searchType');
+                log('🔍 Queries: $searchQueries');
 
                 context.read<HotelSearchBloc>().add(
                   AutocompleteResultSelected(
@@ -242,6 +244,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
               primary: Color(0xFFFF6F61),
+              secondary: Color(0xFFFFD1C8),
               onPrimary: Colors.white,
               surface: Colors.white,
               onSurface: Color(0xFF2C2C2C),
@@ -325,8 +328,8 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
                 child: TextField(
                   focusNode: _searchFocusNode,
                   onChanged: (value) {
-                    // 🆕 Only process if not ignoring
-                    if (!_ignoreTextChange) {
+                    // Only process if not ignoring and value is not empty
+                    if (!_ignoreTextChange && value.trim().isNotEmpty) {
                       context.read<HotelSearchBloc>().add(
                         SearchQueryChanged(value),
                       );
@@ -396,11 +399,14 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
                       vertical: 14,
                     ),
                   ),
-                  onSubmitted: (_) {
-                    _removeOverlay();
-                    context.read<HotelSearchBloc>().add(
-                      const SearchSubmitted(),
-                    );
+                  onSubmitted: (value) {
+                    // Only submit if value is not empty
+                    if (value.trim().isNotEmpty) {
+                      _removeOverlay();
+                      context.read<HotelSearchBloc>().add(
+                        const SearchSubmitted(),
+                      );
+                    }
                   },
                 ),
               ),
@@ -683,10 +689,27 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      _removeOverlay();
-                      context.read<HotelSearchBloc>().add(
-                        const SearchSubmitted(),
-                      );
+                      // Only search if there's a valid query
+                      if (widget.searchController.text.trim().isNotEmpty) {
+                        _removeOverlay();
+                        context.read<HotelSearchBloc>().add(
+                          const SearchSubmitted(),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Please enter something in search field',
+                            ),
+                            backgroundColor: const Color(0xFFFF6F61),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            margin: const EdgeInsets.all(16),
+                          ),
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFF6F61),
